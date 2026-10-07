@@ -1,0 +1,453 @@
+<!--
+Copyright (c) 2025 IBM Corp.
+All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+# Contributing to contract-manager
+
+Thank you for considering contributing to `contract-manager`! We appreciate your time and effort in helping improve this project. This guide will help you understand our development process and how to contribute effectively.
+
+## Table of Contents
+
+- [Code of Conduct](#code-of-conduct)
+- [How Can I Contribute?](#how-can-i-contribute)
+- [Getting Started](#getting-started)
+- [Development Workflow](#development-workflow)
+- [Coding Standards](#coding-standards)
+- [Commit Signing](#commit-signing)
+- [Commit Messages](#commit-messages)
+- [CI Requirements](#ci-requirements)
+- [Pull Request Process](#pull-request-process)
+- [Testing](#testing)
+- [Reporting Bugs](#reporting-bugs)
+- [Suggesting Enhancements](#suggesting-enhancements)
+- [Questions](#questions)
+
+## Code of Conduct
+
+This project and everyone participating in it is governed by our [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to the maintainers listed in [MAINTAINERS.md](MAINTAINERS.md).
+
+## How Can I Contribute?
+
+### Reporting Bugs
+
+We use GitHub issue templates to ensure we collect all necessary information. To report a bug:
+
+1. **Check for existing issues**: Search [existing issues](https://github.com/ibm-hyper-protect/contract-manager/issues) to avoid duplicates
+2. **Use the bug report template**: Click [here](https://github.com/ibm-hyper-protect/contract-manager/issues/new?template=bug_report.yml) or select "Bug Report" when creating a new issue
+3. **Fill out all required fields**: The template will guide you through providing:
+   - Bug description and impact
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Code samples demonstrating the issue
+   - Environment details (Go version, OS, Docker version, etc.)
+
+**Important**: For security vulnerabilities, **do NOT create a public issue**. Instead, report them via [GitHub Security Advisories](https://github.com/ibm-hyper-protect/contract-manager/security/advisories/new) or follow our [Security Policy](SECURITY.md).
+
+### Suggesting Enhancements
+
+To suggest a new feature or enhancement:
+
+1. **Check for existing requests**: Search [existing issues](https://github.com/ibm-hyper-protect/contract-manager/issues) to see if it's already been suggested
+2. **Use the feature request template**: Click [here](https://github.com/ibm-hyper-protect/contract-manager/issues/new?template=feature_request.yml) or select "Feature Request" when creating a new issue
+3. **Provide detailed information**: The template will guide you through:
+   - Problem statement and motivation
+   - Proposed solution
+   - Alternatives considered
+   - Use cases and examples
+   - Priority and impact assessment
+
+### Asking Questions
+
+If you have questions about using the project:
+
+1. **Check the documentation first**: Review the [README.md](README.md) and [DEPLOYMENT.md](DEPLOYMENT.md)
+2. **Search existing Q&A**: Look through [closed issues](https://github.com/ibm-hyper-protect/contract-manager/issues?q=is%3Aissue+label%3Aquestion) with the "question" label
+3. **Use GitHub Discussions**: For general questions, use [GitHub Discussions](https://github.com/ibm-hyper-protect/contract-manager/discussions)
+
+### Code Contributions
+
+We actively welcome your pull requests! However, please follow this process:
+
+1. **Open an issue first** — Before submitting a pull request, open an issue describing:
+   - What bug you're fixing or feature you're adding
+   - Why it should be fixed or added
+   - How you plan to implement it
+
+   This helps us discuss the approach early and avoid duplicated or unnecessary work.
+
+   **Pull requests without a linked issue may be closed.**
+
+2. **Get feedback** — Wait for maintainer feedback on your issue before starting work.
+
+3. **Fork and create a branch** — Once approved, fork the repo and create a feature branch.
+
+4. **Implement your changes** — Follow our coding standards and best practices.
+
+5. **Test thoroughly** — Add tests for your changes and ensure all tests pass.
+
+6. **Submit a pull request** — Reference the original issue in your PR description.
+
+## Getting Started
+
+### Prerequisites
+
+- **Go 1.24+**
+- **Docker Engine 20.10+** and **Docker Compose v2.0+**
+- **Make** — For running build commands
+- **Git** — For version control
+
+### Development Setup
+
+1. **Fork the repository** on GitHub
+
+2. **Clone your fork**:
+   ```bash
+   git clone https://github.com/YOUR-USERNAME/contract-manager.git
+   cd contract-manager
+   ```
+
+3. **Add upstream remote**:
+   ```bash
+   git remote add upstream https://github.com/ibm-hyper-protect/contract-manager.git
+   ```
+
+4. **Start services**:
+   ```bash
+   docker compose up -d
+   ```
+
+5. **Verify your setup**:
+   ```bash
+   cd backend && go test ./...
+   ```
+
+## Development Workflow
+
+1. **Create a feature branch** from `main`:
+   ```bash
+   git checkout main
+   git pull upstream main
+   git checkout -b Feature/your-feature-name
+   ```
+
+2. **Make your changes** following our [coding standards](#coding-standards)
+
+3. **Run tests** frequently during development:
+   ```bash
+   cd backend && go test ./...
+   ```
+
+4. **Format your code**:
+   ```bash
+   cd backend && gofmt -w .
+   ```
+
+5. **Commit your changes** with [proper commit messages](#commit-messages)
+
+6. **Push to your fork**:
+   ```bash
+   git push origin Feature/your-feature-name
+   ```
+
+7. **Open a Pull Request** from your fork to the main repository
+
+## Coding Standards
+
+### Go Style Guide
+
+- Follow the official [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
+- Use `gofmt` to format your code
+- Follow [Effective Go](https://golang.org/doc/effective_go) principles
+- Write idiomatic Go code
+
+### Best Practices
+
+- **Keep functions small and focused** — Each function should do one thing well
+- **Write self-documenting code** — Use clear variable and function names
+- **Add comments for complex logic** — Explain the "why", not the "what"
+- **Handle errors explicitly** — Never ignore errors
+- **Use meaningful package names** — Short, lowercase, no underscores
+- **Export only what's necessary** — Keep internal implementation private
+
+### Database
+
+- **Always use parameterized queries** — Never interpolate user input into SQL strings
+- **Use SQLC** — Regenerate Go code with `sqlc generate` after modifying SQL queries
+- **Write migrations carefully** — All migrations must include a corresponding down migration
+- **Use `IF NOT EXISTS` / `IF EXISTS`** — Ensure migrations are idempotent
+
+### Documentation
+
+- Add GoDoc comments for all exported functions, types, and constants
+- Update `README.md` if adding new features or changing configuration
+- Update `DEPLOYMENT.md` for deployment-related changes
+
+## Commit Signing
+
+**All commits to this repository MUST be signed with GPG or SSH keys.** This ensures the authenticity and integrity of code contributions.
+
+### Why Commit Signing?
+
+- **Authentication**: Proves commits are from legitimate team members
+- **Integrity**: Detects if commits have been tampered with
+- **Non-repudiation**: Authors cannot deny making signed commits
+- **Compliance**: Meets security requirements for regulated industries
+
+### Quick Setup
+
+#### Option 1: GPG Signing (Recommended)
+
+**1. Generate GPG Key**
+```bash
+gpg --full-generate-key
+```
+- Select: `(1) RSA and RSA`
+- Key size: `4096` bits
+- Expiration: `1y` (1 year recommended)
+- Enter your name and **GitHub email address**
+
+**2. Get Your Key ID**
+```bash
+gpg --list-secret-keys --keyid-format=long
+```
+Your key ID is after `rsa4096/` (e.g., `3AA5C34371567BD2`)
+
+**3. Export Public Key**
+```bash
+gpg --armor --export YOUR_KEY_ID
+```
+
+**4. Add to GitHub**
+- Go to: https://github.com/settings/keys
+- Click "New GPG key" and paste your public key
+
+**5. Configure Git (Local — This Repo Only)**
+```bash
+cd contract-manager
+git config --local commit.gpgsign true
+git config --local user.signingkey YOUR_KEY_ID
+git config --local user.email "your-github-email@example.com"
+```
+
+**6. Fix GPG TTY Issue (macOS/Linux)**
+```bash
+echo 'export GPG_TTY=$(tty)' >> ~/.zshrc  # or ~/.bashrc
+source ~/.zshrc
+```
+
+#### Option 2: SSH Signing (Git 2.34+)
+
+**1. Generate SSH Key** (if you don't have one)
+```bash
+ssh-keygen -t ed25519 -C "your-github-email@example.com"
+```
+
+**2. Add to GitHub**
+- Copy your public key: `cat ~/.ssh/id_ed25519.pub`
+- Go to: https://github.com/settings/keys → "New SSH key" → type "Signing Key"
+
+**3. Configure Git (Local — This Repo Only)**
+```bash
+cd contract-manager
+git config --local gpg.format ssh
+git config --local user.signingkey ~/.ssh/id_ed25519.pub
+git config --local commit.gpgsign true
+```
+
+### Making Signed Commits
+
+Once configured, commits are signed automatically:
+```bash
+git commit -m "feat: add new feature"
+```
+
+### Verify Your Commit is Signed
+
+```bash
+git log --show-signature -1
+# Should show: gpg: Good signature from "Your Name <your-email@example.com>"
+```
+
+### Troubleshooting
+
+**"gpg failed to sign the data"**
+```bash
+export GPG_TTY=$(tty)
+git commit -m "your message"
+```
+
+**Sign a previous commit**
+```bash
+git commit --amend --no-edit -S
+git push --force-with-lease
+```
+
+## Commit Messages
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+### Format
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Types
+
+- `feat:` — A new feature
+- `fix:` — A bug fix
+- `docs:` — Documentation only changes
+- `refactor:` — Code changes that neither fix a bug nor add a feature
+- `perf:` — Performance improvements
+- `test:` — Adding or updating tests
+- `chore:` — Changes to build process, dependencies, etc.
+- `ci:` — CI/CD configuration changes
+
+### Examples
+
+```
+feat(contracts): add multi-section contract builder
+
+fix(auth): handle expired JWT tokens gracefully
+
+docs: update deployment guide with TLS configuration
+
+test(handler): add unit tests for contract finalization
+```
+
+### Guidelines
+
+- Use imperative mood — "add feature" not "added feature"
+- Keep subject line under 50 characters
+- Capitalize the subject line
+- Do not end subject line with a period
+- Separate subject from body with a blank line
+- Reference issues (e.g., "Fixes #123")
+
+## CI Requirements
+
+Every pull request must pass the following checks before it can be merged:
+
+### 1. Branch Name
+
+Branch names must follow the format `<Type>/<name>`:
+
+| Type | Purpose |
+|------|---------|
+| `Feature` | A new feature |
+| `Fix` | A bug fix |
+| `Docs` | Documentation only changes |
+| `Refactor` | Code changes that neither fix a bug nor add a feature |
+| `Performance` | Performance improvements |
+| `Test` | Adding or updating tests |
+| `Chore` | Changes to build process, dependencies, etc. |
+| `CI` | CI/CD configuration changes |
+
+Valid: `Feature/add-encryption`, `Fix/null-pointer`, `Chore/upgrade-deps`
+Invalid: `my-branch`, `fix-bug`, `PROJ-123`
+
+### 2. Commit Message
+
+Commits must follow [Conventional Commits](https://www.conventionalcommits.org/) format.
+
+Valid: `feat: add contract expiry`, `fix(api): handle null values`
+Invalid: `updated stuff`, `WIP`, `bug fix`
+
+### 3. No Force Pushes
+
+Force pushing to a PR branch is not allowed. Rebase instead:
+```bash
+git pull --rebase upstream main
+git push origin your-branch
+```
+
+## Pull Request Process
+
+### Before Submitting
+
+- [ ] Link to the related issue in your PR description
+- [ ] Ensure all tests pass (`cd backend && go test ./...`)
+- [ ] Run `go vet ./...` with no errors
+- [ ] Format code with `gofmt`
+- [ ] Update documentation if needed
+- [ ] Add or update tests for your changes
+- [ ] Follow the commit message conventions
+- [ ] Rebase your branch on the latest `main` if needed
+
+### Review Process
+
+1. **Automated checks** — CI must pass before review
+2. **Maintainer review** — At least one maintainer must review
+3. **Address feedback** — Make requested changes promptly
+4. **Approval** — At least one maintainer must approve
+5. **Merge** — Maintainers will merge your PR
+
+### After Your PR is Merged
+
+- Delete your feature branch
+- Update your local repository:
+  ```bash
+  git checkout main
+  git pull upstream main
+  ```
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all backend tests
+cd backend && go test ./...
+
+# Run tests with coverage
+cd backend && go test -cover ./...
+
+# Run specific package tests
+cd backend && go test ./internal/handler -v
+
+# Run integration tests
+cd backend && go test -tags=integration ./...
+```
+
+### Writing Tests
+
+- Write tests for all new code — aim for good coverage
+- Use table-driven tests where appropriate
+- Test edge cases and error conditions
+- Use meaningful test names — `TestFunctionName_Scenario_ExpectedBehavior`
+- Keep tests independent — tests should not depend on each other
+- Never use real credentials in test code; use mock data and test fixtures
+
+## Questions?
+
+If you have questions about contributing:
+
+1. Check the [README.md](README.md) and [DEPLOYMENT.md](DEPLOYMENT.md)
+2. Search [existing issues](https://github.com/ibm-hyper-protect/contract-manager/issues)
+3. Open a new issue with the `question` label
+4. Reach out to the maintainers listed in [MAINTAINERS.md](MAINTAINERS.md)
+
+## License
+
+By contributing to `contract-manager`, you agree that your contributions will be licensed under the Apache License 2.0.
+
+---
+
+Thank you for contributing to contract-manager! Your efforts help make this project better for everyone.
