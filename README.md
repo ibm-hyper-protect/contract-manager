@@ -2,7 +2,7 @@
 
 A secure, enterprise-grade contract generation system with role-based access control, cryptographic signing, and audit trails.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -47,13 +47,13 @@ docker compose ps
 **Vault:**
 - Token: `dev-root-token`
 
-## 📚 Documentation
+## Documentation
 
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide with production setup
 - **[Design/](./Design/)** - Architecture and design documentation
 - **[app/BUILD.md](./app/BUILD.md)** - Desktop application build instructions
 
-## 🏗️ Architecture
+## Architecture
 
 ### Services
 
@@ -75,7 +75,7 @@ docker compose ps
 - **Containerization**: Docker & Docker Compose
 - **Reverse Proxy**: Nginx
 
-## 🔒 Security Features
+## Security Features
 
 - **Role-Based Access Control (RBAC)** - Fine-grained permissions
 - **Cryptographic Signing** - Contract integrity verification
@@ -87,7 +87,7 @@ docker compose ps
 - **Rate Limiting** - Protection against abuse
 - **Security Headers** - CORS, CSP, and hardening middleware
 
-## 📋 Features
+## Features
 
 ### Contract Management
 - Multi-section contract building
@@ -117,7 +117,7 @@ docker compose ps
 - Signature verification
 - Attestation support
 
-## 🛠️ Development
+## Development
 
 ### Project Structure
 
@@ -172,7 +172,7 @@ go test -cover ./...
 go test -tags=integration ./...
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -210,7 +210,7 @@ For production deployment:
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 
-## 📊 Monitoring
+## Monitoring
 
 ### Health Checks
 
@@ -241,7 +241,7 @@ docker compose logs -f backend
 docker compose logs --tail=100 backend
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -265,7 +265,7 @@ sudo chown -R 1000:1000 data/postgres
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for more troubleshooting tips.
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -273,11 +273,11 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for more troubleshooting tips.
 4. Run tests
 5. Submit a pull request
 
-## 📄 License
+## License
 
 [Add your license information here]
 
-## 🆘 Support
+## Support
 
 For issues or questions:
 - Check the [DEPLOYMENT.md](./DEPLOYMENT.md) guide
@@ -285,7 +285,7 @@ For issues or questions:
 - Create a new issue with details
 - Contact the development team
 
-## 🔄 Version History
+## Version History
 
 - **v1.0.0** - Initial release with core features
   - Contract management
@@ -294,7 +294,7 @@ For issues or questions:
   - Vault integration
   - Audit logging
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - HashiCorp Vault for key management
 - PostgreSQL for reliable data storage
