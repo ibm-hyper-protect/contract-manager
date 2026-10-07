@@ -1,0 +1,36 @@
+-- 002_create_enums.up.sql
+-- Creates all custom ENUM types used across tables.
+
+CREATE TYPE build_status AS ENUM (
+    'CREATED',
+    'WORKLOAD_SUBMITTED',
+    'ENVIRONMENT_STAGED',
+    'AUDITOR_KEYS_REGISTERED',
+    'CONTRACT_ASSEMBLED',
+    'FINALIZED',
+    'CANCELLED'
+);
+
+CREATE TYPE persona_role AS ENUM (
+    'SOLUTION_PROVIDER',
+    'DATA_OWNER',
+    'AUDITOR',
+    'ENV_OPERATOR',
+    'ADMIN',
+    'VIEWER'
+);
+
+CREATE TYPE audit_event_type AS ENUM (
+    'BUILD_CREATED',
+    'WORKLOAD_SUBMITTED',
+    'ENVIRONMENT_STAGED',
+    'AUDITOR_KEYS_REGISTERED',
+    'CONTRACT_ASSEMBLED',
+    'BUILD_FINALIZED',
+    'BUILD_CANCELLED',
+    'USER_CREATED',
+    'ROLE_ASSIGNED',
+    'TOKEN_CREATED',
+    'TOKEN_REVOKED',
+    'CONTRACT_DOWNLOADED'
+);

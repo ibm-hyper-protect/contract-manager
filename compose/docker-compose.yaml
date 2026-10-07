@@ -1,0 +1,163 @@
+services:
+  reverse_proxy:
+    image: quay.io/sashwatk/nginx:latest
+    container_name: hpcr-reverse-proxy
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${REVERSE_PROXY_PORT:-8080}:80"
+    volumes:
+      - ${NGINX_CONF_PATH:-./config/nginx/default.conf}:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/nginx-health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    user: "0:0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - app_net
+    restart: unless-stopped
+
+  postgres:
+    image: quay.io/sashwatk/postgres:latest
+    container_name: hpcr-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hpcr_builder}
+      POSTGRES_USER: ${POSTGRES_USER:-hpcr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ${POSTGRES_DATA_DIR:-./data/postgres}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hpcr} -d ${POSTGRES_DB:-hpcr_builder}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    restart: unless-stopped
+    networks:
+      - db_net
+
+  pgadmin:
+    image: quay.io/sashwatk/pgadmin4:latest
+    container_name: hpcr-pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@hpcr-builder.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-change-me-pgadmin-password}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_LISTEN_ADDRESS: "0.0.0.0"
+      PGADMIN_LISTEN_PORT: "80"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    restart: unless-stopped
+    networks:
+      - db_net
+      - app_net
+
+
+  backend:
+    image: ghcr.io/ibm-hyper-protect/contract-manager:16c886c@sha256:5fdaabb341ab46c01c3340434fbadc8405acb000018d6cf190211091425d1a30
+    container_name: hpcr-backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+      SERVER_HOST: ${SERVER_HOST:-0.0.0.0}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      TOKEN_EXPIRY: ${TOKEN_EXPIRY:-24h}
+      BCRYPT_COST: ${BCRYPT_COST:-12}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      MAX_PAYLOAD_SIZE: ${MAX_PAYLOAD_SIZE:-52428800}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      CORS_ALLOW_ALL: ${CORS_ALLOW_ALL:-false}
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-true}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-30s}
+      ADMIN_NAME: ${ADMIN_NAME:?ADMIN_NAME must be set}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL must be set}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/health > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    expose:
+      - "8080"
+    tmpfs:
+      - /tmp
+    user: "0:0"
+    pids_limit: 200
+    mem_limit: 512m
+    cpus: 1.0
+    stop_grace_period: 35s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - app_net
+      - db_net
+    restart: unless-stopped
+
+  migrate:
+    image: ghcr.io/ibm-hyper-protect/contract-manager:16c886c@sha256:5fdaabb341ab46c01c3340434fbadc8405acb000018d6cf190211091425d1a30
+    container_name: hpcr-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/usr/local/bin/migrate"]
+    command:
+      [
+        "-path=/migrations",
+        "-database=${MIGRATE_DATABASE_URL:?MIGRATE_DATABASE_URL must be set}",
+        "up"
+      ]
+    tmpfs:
+      - /tmp
+    user: "0:0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    networks:
+      - db_net
+
+networks:
+  app_net:
+  db_net:
+    internal: true
+
+volumes:
+  pgadmin_data:

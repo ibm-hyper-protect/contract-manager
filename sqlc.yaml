@@ -1,0 +1,33 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/repository/queries/"
+    schema: "migrations/"
+    gen:
+      go:
+        package: "repository"
+        out: "internal/repository"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_prepared_queries: false
+        emit_interface: true
+        emit_exact_table_names: false
+        emit_empty_slices: true
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "inet"
+            go_type: "string"
+          - db_type: "jsonb"
+            go_type:
+              import: "encoding/json"
+              type: "RawMessage"
+          - db_type: "build_status"
+            go_type: "string"
+          - db_type: "persona_role"
+            go_type: "string"
+          - db_type: "audit_event_type"
+            go_type: "string"

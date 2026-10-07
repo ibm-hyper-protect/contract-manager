@@ -1,0 +1,7 @@
+services:
+  reverse_proxy:
+    ports:
+      - "${REVERSE_PROXY_TLS_PORT:-8443}:443"
+    volumes:
+      - ${TLS_CERT_PATH:?TLS_CERT_PATH must point to the TLS certificate file}:/etc/nginx/certs/tls.crt:ro
+      - ${TLS_KEY_PATH:?TLS_KEY_PATH must point to the TLS private key file}:/etc/nginx/certs/tls.key:ro

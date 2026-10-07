@@ -1,0 +1,9 @@
+-- 017_add_v2_workflow_enum_values.down.sql
+-- PostgreSQL does not support removing values from an existing enum type.
+-- The added values (SIGNING_KEY_REGISTERED, ATTESTATION_KEY_REGISTERED,
+-- SIGNING_KEY_CREATED, ATTESTATION_KEY_REGISTERED, ATTESTATION_EVIDENCE_UPLOADED,
+-- ATTESTATION_VERIFIED) are safely ignored if not referenced by any rows.
+-- To fully revert, recreate the enum types without these values (requires
+-- dropping and recreating all dependent columns/tables).
+--
+-- This down migration is intentionally a no-op for safety.
