@@ -71,19 +71,22 @@
 
 ---
 
-## Slide 8: Operational UX Reliability (Recent Improvements)
-- Login server card now resolves backend version via `/health` and `/about` fallback.
-- Build-management toolbar icon alignment issues were fixed with scoped styling.
-- Password strength meter now has reliable visual fill and strict 5-criteria enforcement.
-- Attestation reject outcomes now clearly surface contract-go error reasons to auditors.
+## Slide 8: Operational Reliability Fixes (This Session)
+- **`contract-go` v2 encryption bug fixed**: `HpcrTextEncrypted` was passing the HPCR certificate in the wrong argument slot (OS type instead of certificate); contracts were failing to encrypt correctly — now corrected.
+- **FK ordering bug fixed**: Signing/attestation key generation was writing to `build_keys_private` before the parent `build_keys` row existed, causing constraint violations on key registration — now fixed.
+- **`/health` rate-limit 429 resolved**: Frontend polling `/health` was hitting the global rate limiter and getting 429 responses; health check is now registered outside the rate-limited group.
+- **5 missing `/v2/` route prefixes fixed**: `workload`, `environment`, `finalize`, `contract-template`, and `encryption-certificates/versions` endpoints were unreachable due to wrong path registration.
+- **Migration 020 fixed**: Schema migration for enum cleanup was failing with a PostgreSQL default constraint error; now drops default before the type change and restores it after.
 
 ---
 
 ## Slide 9: Deployment Readiness
-- Standardized Docker Compose deployment topology delivered.
-- Production TLS overlay documented with certificate integration.
+- All 4 containers healthy: `hpcr-postgres`, `hpcr-backend`, `hpcr-pgadmin`, `hpcr-reverse-proxy`.
+- Images use public, pinned versions: `postgres:16-alpine`, `nginx:1.27-alpine`, `dpage/pgadmin4:9`, `contract-manager:local`.
+- Production TLS overlay documented with certificate integration (`docker-compose.prod.yaml` env-specific overlay).
 - Environment variable hardening guidance and validation checklist documented.
 - Upgrade/rollback and post-deploy validation runbooks now available.
+- `.dockerignore` in place to exclude `compose/data/`, `.bob/`, `.git/` from image builds.
 
 ---
 
@@ -98,9 +101,10 @@
 ---
 
 ## Slide 11: Current Risks
-- Release confidence still depends on disciplined end-to-end regression execution.
+- Release confidence still depends on disciplined end-to-end regression execution across all personas.
 - Operational success depends on environment consistency (client version + backend version + config).
-- Key-storage hardening roadmap (OS keychain/HSM path) remains an improvement area.
+- Key-storage hardening roadmap (OS keychain/HSM path via `KeyProvider` interface) remains an improvement area.
+- DB-resident encrypted keys require strong `KEY_ENCRYPTION_KEY` env var management — loss means key material is unrecoverable.
 
 ---
 

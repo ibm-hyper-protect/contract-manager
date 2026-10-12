@@ -83,7 +83,7 @@ signingKey: <signing key or certificate>
 // "hyper-protect-basic.<encrypted-password>.<encrypted-data>".
 func (e *Engine) EncryptString(ctx context.Context, plaintext, certPEM string) (string, error) {
 	_ = ctx
-	encrypted, _, _, err := hpcontract.HpcrTextEncrypted(plaintext, "", certPEM, "")
+	encrypted, _, _, err := hpcontract.HpcrTextEncrypted(plaintext, "", "", certPEM)
 	if err != nil {
 		return "", fmt.Errorf("failed to encrypt plaintext with contract-go v2: %w", err)
 	}

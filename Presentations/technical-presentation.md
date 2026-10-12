@@ -4,7 +4,7 @@
 **Audience:** Engineering, Security, Architecture, DevOps
 **Duration:** 30-40 minutes
 **Date:** April 23, 2026
-**Version:** 0.6 (aligned with HLD v0.6)
+**Version:** 0.7 (aligned with codebase — post session fixes)
 
 ---
 
@@ -20,9 +20,9 @@
 
 ## Slide 2: End-to-End Architecture (V2)
 - **Electron desktop app**: Persona UX, local identity-key signing (RSA-4096), request orchestration
-- **Go backend**: Auth, setup restrictions, RBAC + assignment checks, workflow state transitions, **backend-native contract cryptography via `contract-go` engine**
-- **PostgreSQL**: Encrypted section artifacts, workflow metadata, audit chain events, build key references
-- **HashiCorp Vault**: Build-scoped signing/attestation key custody with just-in-time backend retrieval for HPCR operations
+- **Go backend**: Auth, setup restrictions, RBAC + assignment checks, workflow state transitions, **backend-native contract cryptography via `contract-go` v2 engine**
+- **PostgreSQL**: Encrypted section artifacts, workflow metadata, audit chain events, build key references (AES-256-CBC encrypted PEM blobs)
+- **Key Provider (DB)**: Build-scoped signing/attestation keys stored as encrypted PEM in PostgreSQL via `keymgmt/db` provider — no HashiCorp Vault dependency in current deployment
 - **nginx reverse proxy**: TLS termination, rate limiting, security headers in production
 
 ---
@@ -34,16 +34,17 @@
 - Used for request signing and audit event signatures
 - 90-day expiration with forced rotation
 
-**Build Keys (Vault-Governed):**
-- Signing keys: RSA-4096, Vault-managed, backend retrieves just-in-time for `HpcrContractSign(...)`
-- Attestation keys: RSA-4096, Vault-managed or uploaded public key, backend retrieves for `HpcrGetAttestationRecords(...)`
-- Private key material is memory-only during HPCR operations, immediately zeroized after use
-- Never persisted to DB/files/logs or exposed via APIs
+**Build Keys (DB Key Provider):**
+- Signing keys: RSA-4096, stored as AES-256-CBC encrypted PEM blobs in PostgreSQL (`keymgmt/db` provider)
+- Attestation keys: RSA-4096, same encrypted PEM storage or uploaded public key
+- Private key material retrieved just-in-time for `HpcrContractSign(...)` and `HpcrGetAttestationRecords(...)`
+- Private keys never exposed via APIs or persisted to files/logs
+- `KeyProvider` interface allows switching to Vault backend without service layer changes
 
 **Network Trust:**
 - TLS termination at nginx reverse proxy
-- Vault on internal `app_net` network (not internet-exposed)
-- Backend authenticates to Vault via AppRole (production) or dev token (development)
+- `db_net` internal network isolates postgres from external access
+- Backend is the only service with database credentials
 
 ---
 
@@ -139,13 +140,14 @@ FINALIZED → CONTRACT_DOWNLOADED
 
 ## Slide 8: V2 Stage Data Flow (Backend-Native Cryptography)
 **Phase 1: Auditor - Signing Key Registration**
-- `POST /builds/{id}/keys/signing` with mode `generate` (Vault) or `upload_public`
-- Vault creates RSA-4096 key pair; backend stores public key + Vault reference
+- `POST /builds/{id}/keys/signing` with mode `generate` (DB key provider) or `upload_public`
+- Backend generates RSA-4096 key pair; stores encrypted private PEM in `build_keys_private`, public key in `build_keys`
+- Private key storage happens **after** the parent `build_keys` row is inserted (FK ordering fix)
 - Transitions build to `SIGNING_KEY_REGISTERED`
 
 **Phase 2: Solution Provider - Workload Submission**
 - `POST /builds/{id}/v2/sections/workload` with plaintext YAML + HPCR cert
-- Backend encrypts via `contract-go` (RSA-OAEP + AES-256-GCM)
+- Backend encrypts via `contract-go` v2: `HpcrTextEncrypted(plaintext, "", "", certPEM)` — positional args: `(plainText, os, certVersion, encryptionCertificate)`
 - Stores encrypted payload, section hash, signature metadata
 - Transitions to `WORKLOAD_SUBMITTED`
 
@@ -262,7 +264,7 @@ PENDING_UPLOAD → UPLOADED → VERIFIED
 5. CORS enforcement (explicit allowlist or `CORS_ALLOW_ALL` for dev)
 6. Max body size (default 50MB, configurable)
 7. Request timeout (default 30s)
-8. Rate limiting (global + endpoint-specific)
+8. Rate limiting (global + endpoint-specific) — **`/health` is registered before the rate-limited group and is never throttled**
 
 **Authenticated Route Additions:**
 - Auth middleware (bearer token validation)
@@ -272,6 +274,7 @@ PENDING_UPLOAD → UPLOADED → VERIFIED
 **Rate Limiting:**
 - Global: 10 req/sec, burst 20
 - Login: 5 req/min, burst 3
+- `/health`: exempt — registered outside rate-limited group
 
 **Container Hardening:**
 - Read-only root filesystems with `tmpfs` for writable paths
@@ -321,35 +324,35 @@ PENDING_UPLOAD → UPLOADED → VERIFIED
 ## Slide 14: Deployment Topology
 **Container Services:**
 ```
-Client → reverse_proxy (nginx) → backend (Go) → postgres (PostgreSQL 16)
-                                      ↓
-                                   vault (HashiCorp Vault)
-                                      ↓
-                                  migrate (schema migrations)
+Client → reverse_proxy (nginx:1.27-alpine) → backend (contract-manager:local) → postgres (postgres:16-alpine)
+                                                      ↓
+                                               migrate (contract-manager:local)
+                                               pgadmin (dpage/pgadmin4:9)
 ```
 
 **Network Segmentation:**
-- `app_net`: reverse_proxy ↔ backend ↔ vault
+- `app_net`: reverse_proxy ↔ backend
 - `db_net` (internal): backend/migrate ↔ postgres
-- Vault not internet-exposed
+- No external Vault dependency in current deployment; key ops handled by `keymgmt/db` provider
 
 **TLS Configuration (Production):**
-- `docker-compose.prod.yaml` overlay
+- `docker-compose.prod.yaml` overlay (removed from repo; apply as environment-specific override)
 - nginx `tls.conf` with HTTPS listener (port 443, mapped to 8443)
 - HTTP-to-HTTPS redirect
 - Certificate/key mounted read-only
 - HSTS header enforcement
 
-**Vault Configuration:**
-- Dev mode: In-memory storage, dev root token
-- Production: Persistent storage, AppRole authentication, Transit secrets engine
-- Backend authenticates via `VAULT_ROLE_ID` + `VAULT_SECRET_ID`
-- Key provider: `KEY_PROVIDER=vault` (production) or `mock` (development)
+**Container Hardening:**
+- Read-only root filesystems with `tmpfs` mounts for writable paths
+- `no-new-privileges` security option on all services
+- Dropped Linux capabilities
+- Resource limits: memory, CPU, PID limits per service
 
 **Operational Endpoints:**
-- Health: `GET /health` (backend), `GET /v1/sys/health` (Vault)
+- Health: `GET /health` (never rate-limited, responds `{"status":"ok"}`)
+- About/Version: `GET /about`
 - Swagger: `GET /swagger`
-- System logs: `GET /system-logs` (Admin/Auditor)
+- System logs: `GET /system-logs` (Admin/Auditor only)
 
 ---
 
@@ -379,27 +382,33 @@ Client → reverse_proxy (nginx) → backend (Go) → postgres (PostgreSQL 16)
 ---
 
 ## Slide 16: Technical Next Steps and Hardening Opportunities
+**Fixes Delivered This Session:**
+- `HpcrTextEncrypted` argument order corrected: `certPEM` now passed as `encryptionCertificate` (position 4), not as `confidentialComputingOs` (position 2)
+- FK ordering bug fixed: `build_keys_private` row now inserted only after parent `build_keys` row exists
+- `/health` exempted from global rate limiter — no more 429 on frontend polling
+- 5 routes corrected to `/v2/` prefix: `contract-template`, `encryption-certificates/versions`, `workload`, `environment`, `finalize`
+- Migration 020 fixed: enum `ALTER COLUMN` now drops default before ALTER and restores after
+
 **Testing and Validation:**
 - Expand automated negative-path tests for signature/replay/access edge cases
-- Add integration tests for Vault key lifecycle and failure scenarios
+- Add integration tests for DB key provider key lifecycle and failure scenarios
 - Implement staged release gates for desktop/backend version compatibility
 - Add production operations validation pipeline (health, verify, verify-contract checks)
 
 **Security Hardening:**
 - Migrate desktop identity key storage to OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 - Implement mTLS between reverse proxy and backend
-- Implement mTLS between backend and Vault
+- Evaluate HashiCorp Vault migration path for `KeyProvider` interface
 - Tighten CSP directives (remove `'unsafe-inline'` for styles if feasible)
 - Restrict `connect-src` to configured backend domains in production
 
 **Operational Improvements:**
-- Vault HA configuration and auto-unseal for production
-- Automated backup and restore procedures for PostgreSQL and Vault
+- Automated backup and restore procedures for PostgreSQL
 - Monitoring and alerting for credential rotation events
 - Performance optimization for assignment-filtered build queries
 - OpenAPI spec generation from code to prevent drift
 
 **Architecture Evolution:**
-- Evaluate HSM integration path for highest-security deployments
+- Evaluate HSM / Vault integration path for highest-security deployments via `KeyProvider` interface swap
 - Consider build-level encryption key rotation mechanisms
 - Explore audit log immutability guarantees (append-only storage)

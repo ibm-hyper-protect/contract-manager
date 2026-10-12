@@ -1,306 +1,249 @@
-# Contract Generator
+# IBM Confidential Computing Contract Manager
 
-A secure, enterprise-grade contract generation system with role-based access control, cryptographic signing, and audit trails.
-
-## Quick Start
-
-### Prerequisites
-
-- Docker Engine 20.10+
-- Docker Compose v2.0+
-- 2GB RAM minimum
-- 5GB disk space
-
-### Start the Application
-
-```bash
-# 1. Clone the repository
-git clone <repository-url>
-cd persona-based-contract-generator
-
-# 2. Environment is already configured with .env file
-# Review and customize passwords if needed:
-nano .env
-
-# 3. Start all services
-docker compose up -d
-
-# 4. Check service health
-docker compose ps
-
-# 5. Access the application
-# Main App: http://localhost:8080
-# PgAdmin: http://localhost:5050
-# Vault UI: http://localhost:8000
-```
-
-### Default Credentials
-
-**Admin Login:**
-- Email: `admin@hpcr-builder.local`
-- Password: `SecureAdminPassword123!` (change this!)
-
-**PgAdmin:**
-- Email: `admin@hpcr-builder.dev`
-- Password: `SecurePgAdminPassword123!`
-
-**Vault:**
-- Token: `dev-root-token`
-
-## Documentation
-
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide with production setup
-- **[Design/](./Design/)** - Architecture and design documentation
-- **[app/BUILD.md](./app/BUILD.md)** - Desktop application build instructions
-
-## Architecture
-
-### Services
-
-| Service | Description | Port |
-|---------|-------------|------|
-| **reverse_proxy** | Nginx reverse proxy | 8080 (HTTP), 8443 (HTTPS) |
-| **backend** | Go API server | Internal: 8080 |
-| **postgres** | PostgreSQL 16 database | Internal: 5432 |
-| **vault** | HashiCorp Vault for key management | 8200 |
-| **pgadmin** | Database management UI | 5050 |
-| **vault-ui** | Vault web interface | 8000 |
-
-### Technology Stack
-
-- **Backend**: Go 1.26+ with Chi router
-- **Database**: PostgreSQL 16 with SQLC
-- **Key Management**: HashiCorp Vault
-- **Frontend**: React with Vite (Desktop app)
-- **Containerization**: Docker & Docker Compose
-- **Reverse Proxy**: Nginx
-
-## Security Features
-
-- **Role-Based Access Control (RBAC)** - Fine-grained permissions
-- **Cryptographic Signing** - Contract integrity verification
-- **Audit Trails** - Complete activity logging
-- **Key Management** - Vault-based encryption key storage
-- **Secure Communication** - TLS/HTTPS support
-- **Password Security** - Bcrypt hashing with configurable cost
-- **Token-Based Auth** - JWT with configurable expiry
-- **Rate Limiting** - Protection against abuse
-- **Security Headers** - CORS, CSP, and hardening middleware
-
-## Features
-
-### Contract Management
-- Multi-section contract building
-- Role-based section assignments
-- Version control and tracking
-- Contract finalization workflow
-- Export to multiple formats
-
-### User Management
-- User registration and authentication
-- Role assignment and management
-- API token generation
-- Credential rotation
-- Activity monitoring
-
-### Audit & Compliance
-- Comprehensive audit logging
-- System event tracking
-- User activity monitoring
-- Contract lifecycle tracking
-- Export audit reports
-
-### Key Management
-- Vault-based key storage
-- Automatic key rotation
-- Public key management
-- Signature verification
-- Attestation support
-
-## Development
-
-### Project Structure
-
-```
-.
-├── app/                    # Desktop application (Electron + React)
-├── backend/               # Go backend API
-│   ├── cmd/              # Application entrypoints
-│   ├── internal/         # Internal packages
-│   │   ├── handler/     # HTTP handlers
-│   │   ├── service/     # Business logic
-│   │   ├── repository/  # Database layer
-│   │   ├── middleware/  # HTTP middleware
-│   │   └── crypto/      # Cryptographic operations
-│   └── migrations/       # Database migrations
-├── config/               # Configuration files
-│   └── nginx/           # Nginx configuration
-├── Design/              # Architecture documentation
-└── docker-compose.yaml  # Service orchestration
-```
-
-### Local Development
-
-```bash
-# Start services in development mode
-docker compose up -d
-
-# View logs
-docker compose logs -f backend
-
-# Run database migrations
-docker compose restart migrate
-
-# Access database
-docker compose exec postgres psql -U hpcr hpcr_builder
-
-# Rebuild backend after changes
-docker compose up -d --build backend
-```
-
-### Running Tests
-
-```bash
-# Backend tests
-cd backend
-go test ./...
-
-# With coverage
-go test -cover ./...
-
-# Integration tests
-go test -tags=integration ./...
-```
-
-## Configuration
-
-### Environment Variables
-
-Key configuration options in `.env`:
-
-```bash
-# Database
-POSTGRES_PASSWORD=<secure-password>
-DATABASE_URL=postgres://...
-
-# Admin User
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=<secure-password>
-
-# Security
-TOKEN_EXPIRY=24h
-BCRYPT_COST=12
-
-# Vault
-VAULT_TOKEN=<vault-token>
-VAULT_ADDR=http://vault:8200
-```
-
-See [.env.example](./.env.example) for all available options.
-
-### Production Deployment
-
-For production deployment:
-
-1. **Update passwords** - Change all default passwords
-2. **Enable TLS** - Configure SSL certificates
-3. **Configure Vault** - Use production Vault setup
-4. **Set CORS** - Update allowed origins
-5. **Enable monitoring** - Set up logging and alerts
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
-
-## Monitoring
-
-### Health Checks
-
-```bash
-# Backend health
-curl http://localhost:8080/health
-
-# Nginx health
-curl http://localhost:8080/nginx-health
-
-# Vault health
-curl http://localhost:8200/v1/sys/health
-
-# All services
-docker compose ps
-```
-
-### Logs
-
-```bash
-# All services
-docker compose logs -f
-
-# Specific service
-docker compose logs -f backend
-
-# Last 100 lines
-docker compose logs --tail=100 backend
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Services won't start:**
-```bash
-docker compose down
-docker compose up -d
-docker compose logs
-```
-
-**Database connection errors:**
-```bash
-docker compose exec postgres pg_isready -U hpcr
-docker compose restart backend
-```
-
-**Permission errors:**
-```bash
-sudo chown -R 1000:1000 data/postgres
-```
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for more troubleshooting tips.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests
-5. Submit a pull request
-
-## License
-
-[Add your license information here]
-
-## Support
-
-For issues or questions:
-- Check the [DEPLOYMENT.md](./DEPLOYMENT.md) guide
-- Review existing GitHub issues
-- Create a new issue with details
-- Contact the development team
-
-## Version History
-
-- **v1.0.0** - Initial release with core features
-  - Contract management
-  - User authentication
-  - Role-based access control
-  - Vault integration
-  - Audit logging
-
-## Acknowledgments
-
-- HashiCorp Vault for key management
-- PostgreSQL for reliable data storage
-- Go community for excellent libraries
-- Docker for containerization
+A persona-governed, cryptographically auditable contract lifecycle system for IBM Hyper Protect Container Runtime (HPCR) deployments.
 
 ---
 
-**Note**: This is a development setup. For production deployment, follow the security guidelines in [DEPLOYMENT.md](./DEPLOYMENT.md).
+## Prerequisites
+
+| Requirement | Minimum version |
+|---|---|
+| Docker Engine | 20.10+ |
+| Docker Compose plugin | v2.0+ |
+| Git | any |
+| RAM | 2 GB |
+| Disk | 5 GB |
+
+No Go toolchain is required on the host — the image is built inside a multi-stage Docker build.
+
+---
+
+## Self-Hosting (Fresh VM)
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd contract-manager
+```
+
+### 2. Create your environment file
+
+All configuration lives in `compose/.env`. Copy the example and fill in the required values:
+
+```bash
+cp compose/.env.example compose/.env
+```
+
+Open `compose/.env` and set **at minimum** the four required fields (the compose file will refuse to start without them):
+
+```bash
+# Required — pick strong unique values
+POSTGRES_PASSWORD=<strong-password>
+ADMIN_NAME=System Admin
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=<strong-password>
+```
+
+> All other values have working defaults. See [`compose/.env.example`](compose/.env.example) for the full reference.
+
+### 3. Build the backend image
+
+The `contract-manager:local` image does not exist in any registry — it must be built from source:
+
+```bash
+docker build -t contract-manager:local .
+```
+
+This runs a two-stage build: compiles the Go binary and the `migrate` tool inside the builder stage, then copies them into a minimal Alpine runtime image. Expect 2–5 minutes on first run (module download + compile); subsequent builds use the layer cache.
+
+### 4. Start all services
+
+```bash
+docker compose -f compose/docker-compose.yaml --project-directory compose up -d
+```
+
+This starts five containers in dependency order:
+1. **`hpcr-postgres`** — PostgreSQL 16 database
+2. **`hpcr-migrate`** — runs all schema migrations then exits
+3. **`hpcr-backend`** — Go API server (waits for migrate to complete)
+4. **`hpcr-reverse-proxy`** — nginx reverse proxy (waits for backend healthy)
+5. **`hpcr-pgadmin`** — pgAdmin 4 web UI
+
+### 5. Verify the stack
+
+```bash
+# All four long-running containers should show "healthy"
+docker compose -f compose/docker-compose.yaml --project-directory compose ps
+
+# Backend health endpoint
+curl http://localhost:8080/health
+# Expected: {"status":"ok"}
+```
+
+---
+
+## Default Access
+
+| Interface | URL | Default credentials |
+|---|---|---|
+| API / App | `http://localhost:8080` | `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env` |
+| pgAdmin | `http://localhost:5050` | `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD` from `.env` |
+| Swagger UI | `http://localhost:8080/swagger` | — |
+
+> **First login:** Every new account (including the seeded admin) must complete a mandatory setup flow before accessing any functionality: change the initial password, generate an RSA-4096 key pair, and register the public key.
+
+---
+
+## Day-to-Day Operations
+
+### Rebuild after code changes
+
+```bash
+docker build -t contract-manager:local . \
+  && docker compose -f compose/docker-compose.yaml --project-directory compose up -d --no-deps backend
+```
+
+### View logs
+
+```bash
+# All services
+docker compose -f compose/docker-compose.yaml --project-directory compose logs -f
+
+# Single service
+docker compose -f compose/docker-compose.yaml --project-directory compose logs -f backend
+```
+
+### Stop the stack
+
+```bash
+docker compose -f compose/docker-compose.yaml --project-directory compose down
+```
+
+### Full reset (destroys all data)
+
+```bash
+docker compose -f compose/docker-compose.yaml --project-directory compose down -v
+sudo rm -rf compose/data/postgres
+```
+
+### Access the database directly
+
+```bash
+docker compose -f compose/docker-compose.yaml --project-directory compose \
+  exec postgres psql -U hpcr hpcr_builder
+```
+
+---
+
+## Project Layout
+
+```
+.
+├── cmd/server/             # Main entrypoint — wires services, builds router
+├── internal/
+│   ├── config/             # Environment variable config
+│   ├── contract/           # Engine interface + contract-go v2 implementation
+│   ├── handler/            # HTTP handlers (writeJSON / writeError)
+│   ├── keymgmt/            # KeyProvider interface; db implementation
+│   ├── middleware/         # Auth, RBAC, signature, rate-limit, setup guard
+│   ├── model/              # Domain types + AppError constructors
+│   ├── repository/         # SQLC-generated DB layer (do not edit *.sql.go)
+│   ├── repository/queries/ # SQL source files — edit these, then run sqlc generate
+│   └── service/            # Business logic
+├── migrations/             # golang-migrate SQL files (020 migrations)
+├── compose/
+│   ├── docker-compose.yaml # Stack definition
+│   ├── .env.example        # Config template — copy to .env
+│   └── config/nginx/       # nginx default.conf and tls.conf
+├── Dockerfile              # Multi-stage build: Go builder → Alpine runtime
+└── .dockerignore           # Excludes compose/data/, .bob/, .git/
+```
+
+---
+
+## Services and Ports
+
+| Container | Image | Exposed port | Purpose |
+|---|---|---|---|
+| `hpcr-reverse-proxy` | `nginx:1.27-alpine` | `8080` → 80 | Reverse proxy, rate limiting, TLS termination |
+| `hpcr-backend` | `contract-manager:local` | internal 8080 | Go API server |
+| `hpcr-postgres` | `postgres:16-alpine` | internal 5432 | PostgreSQL database |
+| `hpcr-migrate` | `contract-manager:local` | — | Schema migration runner (exits on completion) |
+| `hpcr-pgadmin` | `dpage/pgadmin4:9` | `5050` → 80 | Database management UI |
+
+---
+
+## Configuration Reference
+
+All variables are set in `compose/.env`. The table below lists those that **must** be changed from the example defaults before first run:
+
+| Variable | Required | Description |
+|---|---|---|
+| `POSTGRES_PASSWORD` | ✅ | PostgreSQL password for the `hpcr` user |
+| `ADMIN_NAME` | ✅ | Display name for the seeded admin account |
+| `ADMIN_EMAIL` | ✅ | Email for the seeded admin account |
+| `ADMIN_PASSWORD` | ✅ | Initial password for the seeded admin account |
+| `DATABASE_URL` | ✅ | Full postgres DSN — must match `POSTGRES_*` values |
+| `MIGRATE_DATABASE_URL` | ✅ | Same DSN used by the migration runner |
+| `PGADMIN_DEFAULT_PASSWORD` | recommended | pgAdmin login password |
+
+> `DATABASE_URL` and `MIGRATE_DATABASE_URL` in `.env.example` use `${POSTGRES_*}` variable interpolation — if your shell or Docker Compose version does not expand these, set them explicitly as literal strings.
+
+---
+
+## Development
+
+### Run tests
+
+```bash
+go test ./cmd/... ./internal/...
+```
+
+### Lint / vet
+
+```bash
+go vet ./cmd/... ./internal/...
+gofmt -w .
+```
+
+### Regenerate SQLC repository layer
+
+After editing any `.sql` file under `internal/repository/queries/`:
+
+```bash
+sqlc generate
+```
+
+> Never edit `internal/repository/*.sql.go` directly — they are overwritten by `sqlc generate`.
+
+---
+
+## Troubleshooting
+
+**`pull access denied for contract-manager`**
+The image must be built locally first. Run step 3 above (`docker build -t contract-manager:local .`).
+
+**`POSTGRES_PASSWORD must be set` / `ADMIN_PASSWORD must be set`**
+The compose file enforces these with `:?`. Copy `.env.example` to `.env` and fill in the required fields.
+
+**`hpcr-migrate` exits with non-zero / backend won't start**
+```bash
+docker compose -f compose/docker-compose.yaml --project-directory compose logs migrate
+```
+A migration failure (e.g. dirty state from a previous partial run) will block the backend. To reset:
+```bash
+docker compose -f compose/docker-compose.yaml --project-directory compose down -v
+sudo rm -rf compose/data/postgres
+docker compose -f compose/docker-compose.yaml --project-directory compose up -d
+```
+
+**`/health` returns 429**
+This should not happen — the `/health` endpoint is registered outside the rate-limited middleware group. If you see it, ensure you are running the image built from the current source.
+
+**`compose/data/postgres` permission errors**
+The postgres data directory is written by the postgres container running as its internal UID. If you see permission errors after a `sudo rm -rf`, recreate the directory:
+```bash
+mkdir -p compose/data/postgres
+```
+Docker will repopulate it on next start.

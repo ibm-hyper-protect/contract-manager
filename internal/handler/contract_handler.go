@@ -77,7 +77,7 @@ func (h *ContractHandler) ListAvailableEncCertVersions(w http.ResponseWriter, r 
 	})
 }
 
-// SubmitWorkload handles POST /builds/{id}/sections/workload
+// SubmitWorkload handles POST /builds/{id}/v2/sections/workload
 func (h *ContractHandler) SubmitWorkload(w http.ResponseWriter, r *http.Request) {
 	buildID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -133,7 +133,7 @@ type submitEnvironmentV2Request struct {
 	CertificatePEM string `json:"certificate_pem"`
 }
 
-// SubmitEnvironment handles POST /builds/{id}/sections/environment
+// SubmitEnvironment handles POST /builds/{id}/v2/sections/environment
 func (h *ContractHandler) SubmitEnvironment(w http.ResponseWriter, r *http.Request) {
 	buildID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {

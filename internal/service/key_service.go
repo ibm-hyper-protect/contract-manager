@@ -12,6 +12,22 @@ import (
 	"github.com/ibm-hyper-protect/contract-manager/internal/repository"
 )
 
+// storePrivateKeyIfPresent persists the encrypted private key to build_keys_private
+// after the parent build_keys row has been inserted.
+func storePrivateKeyIfPresent(ctx context.Context, queries repository.Querier, keyID uuid.UUID, encryptedPEM []byte) error {
+	if len(encryptedPEM) == 0 {
+		return nil
+	}
+	if err := queries.StoreBuildKeyPrivate(ctx, repository.StoreBuildKeyPrivateParams{
+		KeyID:          keyID,
+		EncryptedKey:   encryptedPEM,
+		EncryptionAlgo: "aes-256-cbc",
+	}); err != nil {
+		return fmt.Errorf("failed to store encrypted private key: %w", err)
+	}
+	return nil
+}
+
 // KeyService orchestrates build-scoped signing and attestation keys.
 type KeyService struct {
 	queries           repository.Querier
@@ -97,6 +113,10 @@ func (s *KeyService) RegisterSigningKey(
 		return nil, err
 	}
 
+	if err := storePrivateKeyIfPresent(ctx, s.queries, record.ID, providerRecord.EncryptedPrivateKeyPEM); err != nil {
+		return nil, err
+	}
+
 	// Status transition will log the audit event, so we don't log it here to avoid duplicates
 	if err := s.moveToSigningKeyRegistered(ctx, buildID, actorID, actorRoles, ip, requestSignature, requestSignatureHash); err != nil {
 		return nil, err
@@ -153,6 +173,10 @@ func (s *KeyService) RegisterAttestationKey(
 		CreatedBy:            actorID,
 	})
 	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := storePrivateKeyIfPresent(ctx, s.queries, record.ID, providerRecord.EncryptedPrivateKeyPEM); err != nil {
 		return nil, nil, err
 	}
 

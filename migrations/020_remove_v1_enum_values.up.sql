@@ -29,12 +29,17 @@ CREATE TYPE build_status_new AS ENUM (
 );
 
 -- Migrate the builds.status column.
+-- Drop the default first; it references the old enum and blocks the type change.
+ALTER TABLE builds ALTER COLUMN status DROP DEFAULT;
 ALTER TABLE builds
     ALTER COLUMN status TYPE build_status_new
     USING status::text::build_status_new;
 
 DROP TYPE build_status;
 ALTER TYPE build_status_new RENAME TO build_status;
+
+-- Restore the default using the renamed type.
+ALTER TABLE builds ALTER COLUMN status SET DEFAULT 'CREATED';
 
 
 -- ── audit_event_type ──────────────────────────────────────────────────────────

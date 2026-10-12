@@ -82,11 +82,8 @@ func (rl *RateLimiter) Limit() func(http.Handler) http.Handler {
 			// Get client IP
 			ip := requestIP(r)
 
-			// Get rate limiter for this IP
-			limiter := rl.getVisitor(ip)
-
 			// Check if request is allowed
-			if !limiter.Allow() {
+			if !rl.getVisitor(ip).Allow() {
 				emitSystemLog(
 					r.Context(),
 					actorEmailFromContext(r, "unknown"),

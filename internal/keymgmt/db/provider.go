@@ -87,15 +87,8 @@ func (p *Provider) createKey(ctx context.Context, buildID, actorID uuid.UUID, ke
 		}
 
 		record.PublicKey = pubPEM
-
-		// Store encrypted private key in build_keys_private table
-		if err := p.queries.StoreBuildKeyPrivate(ctx, repository.StoreBuildKeyPrivateParams{
-			KeyID:          record.ID,
-			EncryptedKey:   []byte(encPrivPEM),
-			EncryptionAlgo: "aes-256-cbc",
-		}); err != nil {
-			return keymgmt.KeyRecord{}, fmt.Errorf("failed to store encrypted private key: %w", err)
-		}
+		// Caller must persist this after inserting the parent build_keys row.
+		record.EncryptedPrivateKeyPEM = []byte(encPrivPEM)
 
 	case model.BuildKeyModeUploadPublic:
 		if publicKeyPEM == nil || *publicKeyPEM == "" {
