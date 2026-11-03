@@ -258,6 +258,23 @@ const openAPISpecJSON = `{
         }
       }
     },
+    "/v2/contract-validate": {
+      "post": {
+        "summary": "Validate plaintext contract sections",
+        "description": "Checks raw workload or env YAML, or both plaintext sections together, against the embedded CCRT schema. Complete inputs are checked as a pair before selecting the requested section. No data is persisted.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": {
+          "type": "object", "required": ["plaintext"], "properties": {
+            "plaintext": { "type": "string" },
+            "section": { "type": "string", "enum": ["workload", "env", ""], "description": "Empty validates both sections" }
+          }
+        }}}},
+        "responses": {
+          "200": { "description": "Validated plaintext in canonical YAML; valid, section and platform metadata" },
+          "400": { "description": "Invalid YAML, section or contract schema" }
+        }
+      }
+    },
     "/v2/contract-template": {
       "post": {
         "summary": "Get contract template",

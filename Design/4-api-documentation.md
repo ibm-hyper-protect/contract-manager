@@ -496,7 +496,7 @@ All paths below are relative to backend root.
     {
       "id": "uuid",
       "name": "SOLUTION_PROVIDER",
-      "description": "Provides workload definition and HPCR encryption certificate",
+      "description": "Provides workload definition and runtime encryption certificate",
       "created_at": "...",
       "updated_at": "..."
     }
@@ -1115,7 +1115,7 @@ All rotation endpoints require `ADMIN` and request signature headers.
 
 All key management endpoints require `BuildAccess` middleware and are nested under `/builds/{id}/keys/...`.
 
-For `contract-go` HPCR operations that require private keys, backend workers retrieve the AES-256-CBC encrypted PEM from `build_keys_private`, decrypt it in-memory using the caller-supplied passphrase, and zeroize memory after cryptographic operations. Private keys are never returned by API responses.
+For `contract-go` contract operations that require private keys, backend workers retrieve the AES-256-CBC encrypted PEM from `build_keys_private`, decrypt it in-memory using the caller-supplied passphrase, and zeroize memory after cryptographic operations. Private keys are never returned by API responses.
 
 #### POST /builds/{id}/keys/signing
 
@@ -1192,7 +1192,7 @@ Template retrieval is global (not build-scoped). Section submission and finaliza
 #### GET /v2/encryption-certificates/versions
 
 - Auth: required
-- Response `200`: list of available HPCR encryption certificate versions that can be used as `certificate_pem` in section submission.
+- Response `200`: list of available runtime encryption certificate versions that can be used as `certificate_pem` in section submission.
 
 #### POST /v2/contract-template
 
@@ -1234,7 +1234,7 @@ Template retrieval is global (not build-scoped). Section submission and finaliza
 ```
 
 - Response `201`: section object with `encrypted_payload`, `section_hash`.
-- Backend encrypts plaintext using `contract-go` engine with the provided HPCR certificate.
+- Backend encrypts plaintext using `contract-go` engine with the provided runtime encryption certificate.
 - Transitions build to `WORKLOAD_SUBMITTED`.
 
 #### POST /builds/{id}/v2/sections/environment

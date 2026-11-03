@@ -65,6 +65,28 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Creat
 	return i, err
 }
 
+const ensureBuildEncryptionCertificate = `-- name: EnsureBuildEncryptionCertificate :execrows
+UPDATE builds
+SET encryption_certificate = $2
+WHERE id = $1
+  AND status = $3
+  AND (encryption_certificate IS NULL OR encryption_certificate = $2)
+`
+
+type EnsureBuildEncryptionCertificateParams struct {
+	ID                    uuid.UUID `json:"id"`
+	EncryptionCertificate *string   `json:"encryption_certificate"`
+	Status                string    `json:"status"`
+}
+
+func (q *Queries) EnsureBuildEncryptionCertificate(ctx context.Context, arg EnsureBuildEncryptionCertificateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, ensureBuildEncryptionCertificate, arg.ID, arg.EncryptionCertificate, arg.Status)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const finalizeBuild = `-- name: FinalizeBuild :exec
 UPDATE builds
 SET status = 'FINALIZED',

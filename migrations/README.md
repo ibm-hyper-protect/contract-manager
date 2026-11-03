@@ -40,7 +40,7 @@ These migrations implement the security and assignment features required by the 
 - **Purpose**: Enforces that only assigned users can contribute to specific builds
 
 ### 011: Builds Table Update
-- **Adds**: encryption_certificate field to store HPCR encryption certificate
+- **Adds**: encryption_certificate field to store runtime encryption certificate
 - **Purpose**: Solution Provider uploads this certificate; Auditor retrieves it for final contract assembly
 
 ### 012: Build Sections Table Update

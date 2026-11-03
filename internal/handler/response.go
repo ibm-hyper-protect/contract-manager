@@ -42,8 +42,9 @@ func readJSON(r *http.Request, dst any) error {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	// Ensure only one JSON object in body
-	if decoder.More() {
+	// Ensure only one JSON object in body.
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
 		return fmt.Errorf("request body must contain a single JSON object")
 	}
 
@@ -57,6 +58,11 @@ func readJSONLarge(r *http.Request, dst any, maxSize int64) error {
 	if err := decoder.Decode(dst); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return fmt.Errorf("request body must contain a single JSON object")
+	}
+
 	return nil
 }
 

@@ -28,6 +28,7 @@ type Querier interface {
 	DeleteBuildAssignmentsByBuildID(ctx context.Context, buildID uuid.UUID) error
 	DeleteBuildKeyPrivate(ctx context.Context, keyID uuid.UUID) error
 	DeleteRolesByUserID(ctx context.Context, userID uuid.UUID) error
+	EnsureBuildEncryptionCertificate(ctx context.Context, arg EnsureBuildEncryptionCertificateParams) (int64, error)
 	FinalizeBuild(ctx context.Context, arg FinalizeBuildParams) error
 	ForcePasswordChange(ctx context.Context, id uuid.UUID) error
 	GetAPITokenByHash(ctx context.Context, tokenHash string) (ApiToken, error)

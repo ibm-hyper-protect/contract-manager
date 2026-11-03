@@ -18,6 +18,7 @@ import (
 	hpcontract "github.com/ibm-hyper-protect/contract-go/v2/contract"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract"
+	"github.com/ibm-hyper-protect/contract-manager/internal/contract/validation"
 	appcrypto "github.com/ibm-hyper-protect/contract-manager/internal/crypto"
 )
 
@@ -36,58 +37,34 @@ func New() *Engine {
 	return &Engine{}
 }
 
+// The archive contains a compose.yaml with a placeholder image. Replace it with
+// the workload archive for the target runtime before deployment.
 const fallbackWorkloadTemplate = `type: workload
-auths:
-  <registry url>:
-    password: <password>
-    username: <user name>
-# Use either compose or pods
-play:
-  archive: <base64 TGZ of podman play support files>
+# Replace this example TGZ (compose.yaml) with your own Base64-encoded archive.
+# The example image is registry.example/namespace/image:tag.
 compose:
-  archive: <base64 TGZ of docker compose support files>
-images:
-  dct:
-    <docker image name (without the tag, an example is docker.io/redbookuser/s390x:)>:
-      notary: "<notary URL>"
-      publicKey: <docker content trust signed public key>
-volumes:
-  <volume key>:
-    mount: "<data volume mount path>"
-    seed: "<Passphrase of the LUKS encryption>"
-    filesystem: "ext4"
+  archive: H4sIAAAAAAAA/+3PwQqDMAzGcc8+RZ9A6xAPvk0oQQQ7S9uN+fZzCmPs7jbY/3f5QggkcbMPc9JqET8VB7Grrm23XL2nbWzzrLd+Y09dVxh71EGvLilLXNd/YtcPShqvo9PUl8ZICI8wZvQyaG+iDmPKcan0Jj5MWp/FawritN4nsgzltx8AAAAAAAAAAAAAAAAAgD91B51whugAKAAA
 `
 
 const fallbackEnvTemplate = `type: env
+# Configure one logging provider for your deployment.
 logging:
-  # Use logRouter for ICL & syslog for syslog server (only one)
   logRouter:
-    hostname: <host name of the service instance> /
-    iamApiKey: <iamApiKey of the service instance> / xxxx
-    port: <port of the service instance(443)
-  syslog:
-    hostname: ${RSYSLOG_SERVER_IP}
-    port: 6514
-    server: "${RSYSLOG_SERVER_ROOT_CA}"
-    cert: "${RSYSLOG_CLIENT_CA}"
-    key: "${RSYSLOG_CLIENT_KEY}"
-volumes:
-  test:
-    seed: "seed_value_with_minimum_15_characters"
+    hostname: logs.example.com
+    iamApiKey: REPLACE_WITH_YOUR_API_KEY
+    port: 443
+# The registered build signing key is added by the backend.
 env:
-  <env-name>: "env-value"
-signingKey: <signing key or certificate>
+  EXAMPLE: "replace-me"
 `
 
 // EncryptString encrypts plaintext using the official contract-go v2 format:
-// "hyper-protect-basic.<encrypted-password>.<encrypted-data>".
+// "contract-basic.<encrypted-password>.<encrypted-data>" for CCRT.
 func (e *Engine) EncryptString(ctx context.Context, plaintext, certPEM string) (string, error) {
-	_ = ctx
-	encrypted, _, _, err := hpcontract.HpcrTextEncrypted(plaintext, "", "", certPEM)
-	if err != nil {
-		return "", fmt.Errorf("failed to encrypt plaintext with contract-go v2: %w", err)
+	if strings.TrimSpace(plaintext) == "" {
+		return "", fmt.Errorf("plaintext section is required")
 	}
-	return encrypted, nil
+	return encryptEnvelope(ctx, plaintext, certPEM)
 }
 
 func aesCipher(key []byte) (cipher.AEAD, error) {
@@ -105,6 +82,11 @@ func aesCipher(key []byte) (cipher.AEAD, error) {
 // AssembleContract builds deterministic YAML and computes SHA-256 hash.
 func (e *Engine) AssembleContract(ctx context.Context, in contract.AssembleInput) (string, string, error) {
 	_ = ctx
+	for _, section := range []string{in.EncryptedWorkload, in.EncryptedEnvironment, in.EncryptedAttestationKey} {
+		if err := validation.EncryptedSection(section); err != nil {
+			return "", "", fmt.Errorf("assemble encrypted contract: %w", err)
+		}
+	}
 	contractYAML := strings.TrimSpace(fmt.Sprintf(
 		"env: %s\nworkload: %s\nenvWorkloadSignature: %s\nattestationPublicKey: %s\n",
 		in.EncryptedEnvironment,
@@ -118,7 +100,7 @@ func (e *Engine) AssembleContract(ctx context.Context, in contract.AssembleInput
 	return contractYAML, hash, nil
 }
 
-// HpcrContractSign provides an HPCR-compatible signing hook.
+// HpcrContractSign provides a runtime-compatible signing hook.
 // It delegates to contract-go/v2 and returns:
 // 1) final signed contract YAML
 // 2) SHA-256 of input contract YAML
@@ -133,31 +115,20 @@ func (e *Engine) HpcrContractSign(ctx context.Context, contractData, privateKeyP
 	return signedContract, inputChecksum, outputChecksum, nil
 }
 
-// HpcrContractTemplate delegates template generation to contract-go/v2.
+// HpcrContractTemplate returns editable, schema-valid CCRT starter templates.
+// Keep the interface method name compatible with existing callers.
 func (e *Engine) HpcrContractTemplate(ctx context.Context, templateType string) (string, error) {
 	_ = ctx
 	normalized := strings.ToLower(strings.TrimSpace(templateType))
 	switch normalized {
 	case "docker_compose", "docker-compose", "podman_play", "podman-play":
-		// Legacy aliases retained for backward compatibility; both map to workload template.
+		// Preserve legacy aliases; the UI also offers an inline Podman template.
 		normalized = "workload"
 	}
-
-	template, err := hpcontract.HpcrContractTemplate(normalized, "")
-	if err != nil {
-		// contract-go template retrieval uses runtime source file paths and can fail
-		// in slim container images where module source files are absent.
-		if fallback, ok := fallbackContractTemplate(normalized); ok {
-			return fallback, nil
-		}
-		return "", fmt.Errorf("failed to generate contract template: %w", err)
+	if template, ok := fallbackContractTemplate(normalized); ok {
+		return template, nil
 	}
-	if strings.TrimSpace(template) == "" {
-		if fallback, ok := fallbackContractTemplate(normalized); ok {
-			return fallback, nil
-		}
-	}
-	return template, nil
+	return "", fmt.Errorf("unsupported contract template type: %s", normalized)
 }
 
 func fallbackContractTemplate(templateType string) (string, bool) {
@@ -186,8 +157,8 @@ func (e *Engine) HpcrGetAttestationRecords(ctx context.Context, data, privateKey
 	}
 	if !strings.HasPrefix(trimmed, "contract-go.v1.") {
 		// v2 official format from contract-go library.
-		if strings.HasPrefix(trimmed, "hyper-protect-basic.") {
-			decrypted, _, _, err := hpcontract.HpcrTextDecrypted(trimmed, privateKeyPEM, password)
+		if strings.HasPrefix(trimmed, "hyper-protect-basic.") || strings.HasPrefix(trimmed, "contract-basic.") {
+			decrypted, err := decryptEnvelope(ctx, trimmed, privateKeyPEM, password)
 			if err != nil {
 				return "", fmt.Errorf("failed to decrypt hyper-protect-basic payload: %w", err)
 			}

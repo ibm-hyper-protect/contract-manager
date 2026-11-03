@@ -74,7 +74,7 @@ The system enforces a strict, linear, multi-persona workflow with cryptographic 
 - Backend is never directly internet-exposed.
 - **Contract cryptography** (section encryption, assembly, signing) is performed server-side via `contract-go`.
 - **Identity cryptography** (user key generation, request signing) remains client-side.
-- Build-scoped signing and attestation keys are stored in **PostgreSQL** (`build_keys_private` table) as passphrase-encrypted PEM blobs. HPCR-required private key usage happens only as short-lived in-memory material inside backend workers; passphrases are caller-supplied per-request and never stored.
+- Build-scoped signing and attestation keys are stored in **PostgreSQL** (`build_keys_private` table) as passphrase-encrypted PEM blobs. runtime-required private key usage happens only as short-lived in-memory material inside backend workers; passphrases are caller-supplied per-request and never stored.
 - Backend stores only encrypted or hashed data.
 - Backend verifies signatures against registered public keys — never against request-supplied keys.
 
@@ -195,7 +195,7 @@ When a build is created, the Admin **assigns specific users** to each persona ro
 | | |
 |---|---|
 | **Provides** | Signing key (generated server-side or uploaded) |
-| **V2 Actions** | Register signing key via `POST /builds/{id}/keys/signing`. Backend generates RSA-4096 key pair, encrypts private key with caller passphrase (AES-256-CBC), stores in `build_keys_private`, and returns public key + key ID. Private key material is only decrypted transiently at runtime for HPCR operations. |
+| **V2 Actions** | Register signing key via `POST /builds/{id}/keys/signing`. Backend generates RSA-4096 key pair, encrypts private key with caller passphrase (AES-256-CBC), stores in `build_keys_private`, and returns public key + key ID. Private key material is only decrypted transiently at runtime for contract operations. |
 
 ---
 
@@ -204,7 +204,7 @@ When a build is created, the Admin **assigns specific users** to each persona ro
 | | |
 |---|---|
 | **Provides** | Workload section payload |
-| **V2 Actions** | Submit plaintext workload + HPCR encryption certificate to backend via `POST /builds/{id}/v2/sections/workload`. Backend encrypts using `contract-go`. |
+| **V2 Actions** | Submit plaintext workload + runtime encryption certificate to backend via `POST /builds/{id}/v2/sections/workload`. Backend encrypts using `contract-go`. |
 | **V1 Actions (deprecated)** | Encrypt workload using `contract-cli` locally, compute SHA256 hash, sign hash with private key, upload via `POST /builds/{id}/sections` |
 
 **Notes:**
@@ -220,7 +220,7 @@ When a build is created, the Admin **assigns specific users** to each persona ro
 | | |
 |---|---|
 | **Provides** | Environment section payload (logging credentials, secrets, env vars) |
-| **V2 Actions** | Submit plaintext environment + HPCR encryption certificate via `POST /builds/{id}/v2/sections/environment`. Backend encrypts using `contract-go` and stores encrypted payload + section hash. |
+| **V2 Actions** | Submit plaintext environment + runtime encryption certificate via `POST /builds/{id}/v2/sections/environment`. Backend encrypts using `contract-go` and stores encrypted payload + section hash. |
 | **V1 Actions (deprecated)** | Encrypt environment locally, wrap symmetric key, and submit via `POST /builds/{id}/sections`. |
 
 **Notes:**
@@ -238,7 +238,7 @@ When a build is created, the Admin **assigns specific users** to each persona ro
 | | |
 |---|---|
 | **Provides** | Attestation public key |
-| **V2 Actions** | Register attestation key via `POST /builds/{id}/keys/attestation` — mode `generate` (backend generates RSA-4096 key pair, private key encrypted with passphrase and stored in `build_keys_private`, enabling backend-side HPCR attestation decryption/verification) or `upload_public` (Auditor provides externally generated public key; no private key stored server-side). |
+| **V2 Actions** | Register attestation key via `POST /builds/{id}/keys/attestation` — mode `generate` (backend generates RSA-4096 key pair, private key encrypted with passphrase and stored in `build_keys_private`, enabling backend-side runtime attestation decryption/verification) or `upload_public` (Auditor provides externally generated public key; no private key stored server-side). |
 
 ---
 
@@ -261,7 +261,7 @@ When a build is created, the Admin **assigns specific users** to each persona ro
 **Backend Actions (V2):**
 
 - Verifies the Auditor is the assigned user for this build.
-- Encrypts attestation public key using HPCR certificate (if provided).
+- Encrypts attestation public key using required runtime encryption certificate.
 - Signs `envWorkloadSignature` and `contractHash` using `HpcrContractSign(...)` with private key material decrypted from `build_keys_private` and loaded transiently into backend memory.
 - Assembles deterministic YAML contract.
 - Stores `contract_yaml` and marks build as **FINALIZED** with `is_immutable = true`.
@@ -288,7 +288,7 @@ When a build is created, the Admin **assigns specific users** to each persona ro
 3. Compute `SHA256(contract.yaml)` locally and verify it matches the build's `contract_hash`.
 4. Sign the `contract_hash` with the Env Operator's **registered identity private key**.
 5. Upload signed acknowledgment to backend.
-6. Deploy the decoded YAML to the HPCR instance.
+6. Deploy the decoded YAML to the CCRT instance.
 
 **Backend Actions:**
 
@@ -434,10 +434,10 @@ erDiagram
 - **User** — A person using the system. Carries their identity (password, public key) and links to everything they do.
 - **Role** — A reference table of persona types (seeded at deployment). Not an ENUM — it's a first-class table so all other tables reference it via foreign key.
 - **User Role** — Junction table: "User X has role Y, assigned by Admin Z." A user can have multiple roles.
-- **Build** — A contract being collaboratively constructed. Tracks current lifecycle status and eventually holds the final contract YAML/hash (raw YAML in current flow; legacy rows may be base64). `encryption_certificate` exists as an optional compatibility field.
+- **Build** — A contract being collaboratively constructed. Tracks current lifecycle status and eventually holds the final contract YAML/hash (raw YAML in current flow; legacy rows may be base64). `encryption_certificate` pins the runtime certificate on the first new section submission; legacy builds may leave it unset.
 - **Build Assignment** — "For Build B, role Y is performed by User X." This is how the Admin binds specific users to specific builds. One user per role per build.
 - **Build Section** — Encrypted data submitted by a persona during the build. Current flow stores up to 3 role sections (Solution Provider, Data Owner, Auditor), each with encrypted payload, hash, and signature metadata.
-- **Build Key** — Build-scoped signing or attestation key. For `generate` mode, public key is stored in `build_keys` and the AES-256-CBC encrypted private key PEM is stored in `build_keys_private`; for `upload_public` mode, only the public key is stored. Private key material is decrypted transiently by backend for HPCR-required operations and is never persisted in plaintext.
+- **Build Key** — Build-scoped signing or attestation key. For `generate` mode, public key is stored in `build_keys` and the AES-256-CBC encrypted private key PEM is stored in `build_keys_private`; for `upload_public` mode, only the public key is stored. Private key material is decrypted transiently by backend for runtime-required operations and is never persisted in plaintext.
 - **Attestation Evidence** — Records + signature files uploaded by Data Owner or Env Operator for post-finalization attestation verification.
 - **Attestation Verification** — Auditor-triggered verification result (VERIFIED or REJECTED) with details.
 - **Audit Event** — A tamper-evident log entry. Each event hashes its data together with the previous event's hash, forming an unbreakable chain. Signed by the actor's registered key.
@@ -880,11 +880,11 @@ The `GET /builds/{id}/verify` endpoint:
 | **Mutating Request Signing** | All authenticated mutating endpoints require `X-Signature`, `X-Signature-Hash`, `X-Timestamp` (+ optional `X-Key-Fingerprint`) except setup/logout exemptions; backend verifies against registered user public key |
 | **Cryptographic Identity** | All users register RSA-4096 public keys; signatures verified against registered keys; keys expire after 90 days |
 | **Identity Private Key Isolation** | Identity private keys generated and stored locally on user machines; never transmitted |
-| **Build Key Isolation** | Signing and attestation private keys are stored encrypted at rest in PostgreSQL (`build_keys_private`, AES-256-CBC). Decrypted transiently in backend memory during HPCR operations using caller-supplied passphrase; passphrases never persisted. Disk-level encryption recommended. |
+| **Build Key Isolation** | Signing and attestation private keys are stored encrypted at rest in PostgreSQL (`build_keys_private`, AES-256-CBC). Decrypted transiently in backend memory during contract operations using caller-supplied passphrase; passphrases never persisted. Disk-level encryption recommended. |
 | **Credential Rotation** | Passwords and public keys rotate every 90 days. Backend forces setup flow on expiry |
 | **First-Login Enforcement** | All new users (including seeded admin) must change password and register public key before accessing any functionality |
 | **Environment Staging Protection** | In v2, environment payload is submitted over TLS and encrypted server-side via `contract-go`; only encrypted artifacts are stored. Legacy local wrapping flow remains v1-only compatibility. |
-| **Final Contract Integrity** | SHA256 hash + backend HPCR signature using passphrase-decrypted key material from `build_keys_private`; immutable after FINALIZED |
+| **Final Contract Integrity** | SHA256 hash + backend CCRT signature using passphrase-decrypted key material from `build_keys_private`; immutable after FINALIZED |
 | **Audit Integrity** | Deterministic hash chain (RFC 8785 canonical JSON); signature verification per event using registered keys |
 | **Data at Rest** | Only encrypted payloads stored; disk-level encryption recommended. Build private keys stored encrypted in PostgreSQL — database access controls and host disk encryption are the primary compensating controls. |
 

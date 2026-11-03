@@ -502,14 +502,14 @@ Signed-stage expectation in verification:
 
 - build-scoped signing and attestation key lifecycle
 - delegates key generation/storage to `KeyProvider` interface (DB or Mock)
-- signing keys: RSA-4096. For `generate` mode, private key is encrypted with caller passphrase (AES-256-CBC) and stored in `build_keys_private`. For HPCR-required operations, `GetPrivateKey()` retrieves the encrypted PEM; contract-go decrypts it using the passphrase and zeroizes memory after use.
+- signing keys: RSA-4096. For `generate` mode, private key is encrypted with caller passphrase (AES-256-CBC) and stored in `build_keys_private`. For runtime-required operations, `GetPrivateKey()` retrieves the encrypted PEM; contract-go decrypts it using the passphrase and zeroizes memory after use.
 - attestation keys: mode `generate` (stored encrypted in `build_keys_private`) or `upload_public` (external PEM, no private key stored)
 - emits `SIGNING_KEY_CREATED` and `ATTESTATION_KEY_REGISTERED` audit events
 
 ### 7.8 ContractService
 
 - backend-native section encryption via `contract-go` engine (RSA-OAEP + AES-256-GCM)
-- accepts plaintext + HPCR certificate PEM; returns encrypted payload + hash
+- accepts plaintext + runtime encryption certificate PEM; returns encrypted payload + hash
 - owns internal `submitSection()` helper: validates build state, checks for duplicate role submissions, inserts `build_sections` row, auto-transitions status
 - finalization: loads encrypted sections, retrieves signing key encrypted PEM via `KeyProvider.GetPrivateKey()`, passes to `HpcrContractSign(...)` with caller passphrase, assembles deterministic YAML
 - emits `BUILD_FINALIZED` audit event

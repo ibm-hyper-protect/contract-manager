@@ -30,3 +30,10 @@ SET status = 'FINALIZED',
     finalized_at = now(),
     is_immutable = true
 WHERE id = $1;
+
+-- name: EnsureBuildEncryptionCertificate :execrows
+UPDATE builds
+SET encryption_certificate = $2
+WHERE id = $1
+  AND status = $3
+  AND (encryption_certificate IS NULL OR encryption_certificate = $2);
