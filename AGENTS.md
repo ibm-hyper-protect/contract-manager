@@ -28,7 +28,7 @@ go vet ./...
 gofmt -w .
 
 # Regenerate SQLC repository code (after editing SQL in internal/repository/queries/)
-sqlc generate
+./scripts/generate-repository.sh
 ```
 
 > There is no Makefile. All commands are run from the repo root.
@@ -51,7 +51,7 @@ internal/keymgmt/       → KeyProvider interface; db and mock implementations
 ## Critical Non-Obvious Patterns
 
 ### Database layer
-- `internal/repository/*.sql.go` files are **SQLC-generated** — never edit them manually. Edit `.sql` files in `internal/repository/queries/` then run `sqlc generate`.
+- `internal/repository/*.sql.go` files are **SQLC-generated** — never edit them manually. Edit `.sql` files in `internal/repository/queries/` then run `./scripts/generate-repository.sh`.
 - `v2_store.go` contains **raw SQL** (not SQLC) for tables not yet in migrations that SQLC processes. New tables should prefer adding to queries/ and regenerating.
 - `pgtype.Timestamptz` is used for nullable timestamps; convert to `*time.Time` before returning from service layer (see `auth_service.go` for the pattern).
 

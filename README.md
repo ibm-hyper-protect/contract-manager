@@ -153,7 +153,7 @@ docker compose -f compose/docker-compose.yaml --project-directory compose \
 │   ├── middleware/         # Auth, RBAC, signature, rate-limit, setup guard
 │   ├── model/              # Domain types + AppError constructors
 │   ├── repository/         # SQLC-generated DB layer (do not edit *.sql.go)
-│   ├── repository/queries/ # SQL source files — edit these, then run sqlc generate
+│   ├── repository/queries/ # SQL source files — edit these, then run ./scripts/generate-repository.sh
 │   └── service/            # Business logic
 ├── migrations/             # golang-migrate SQL files (020 migrations)
 ├── compose/
@@ -216,10 +216,11 @@ gofmt -w .
 After editing any `.sql` file under `internal/repository/queries/`:
 
 ```bash
-sqlc generate
+./scripts/generate-repository.sh
 ```
 
-> Never edit `internal/repository/*.sql.go` directly — they are overwritten by `sqlc generate`.
+> Never edit `internal/repository/*.sql.go` directly — they are overwritten by `./scripts/generate-repository.sh`.
+> The script runs SQLC and copies license headers from the SQL source files into the generated query files.
 
 ---
 

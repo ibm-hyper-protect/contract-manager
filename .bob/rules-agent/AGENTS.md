@@ -6,7 +6,7 @@ This file provides guidance to agents when working with code in this repository.
 
 ### Repository layer
 - NEVER edit `internal/repository/*.sql.go` — they are SQLC-generated.
-- Add/modify queries only in `internal/repository/queries/*.sql`, then run `sqlc generate`.
+- Add/modify queries only in `internal/repository/queries/*.sql`, then run `./scripts/generate-repository.sh`.
 - For tables outside SQLC scope (attestation, build_keys), use raw `pgx` SQL inside `service/v2_store.go`.
 
 ### Error handling
@@ -34,7 +34,7 @@ This file provides guidance to agents when working with code in this repository.
 1. stdlib → 2. third-party → 3. `github.com/ibm-hyper-protect/contract-manager/internal/...`
 
 ### Adding a new endpoint
-1. Add SQL query to `internal/repository/queries/`, run `sqlc generate`.
+1. Add SQL query to `internal/repository/queries/`, run `./scripts/generate-repository.sh`.
 2. Add method to `internal/service/`.
 3. Add handler method to `internal/handler/`; use `writeJSON` / `writeError`.
 4. Register route in `cmd/server/main.go:buildRouter()`; apply `middleware.RequireRole(...)` as needed.
