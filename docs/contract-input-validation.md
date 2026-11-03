@@ -17,7 +17,7 @@ limitations under the License.
 
 # Contract input validation and encryption
 
-This change is separate from the multiple-device-key feature. It builds on the server entrypoint in PR #7; the feature diff is relative to that branch. The paired UI branch is `fix/contract-input-validation`. The paired UI can be deployed independently: it uses full schema validation when the endpoint is available and shows an explicit local syntax/section-only review on older servers returning 404. Non-404 failures still block review.
+This change is separate from the multiple-device-key feature. It builds on the server entrypoint in PR #7; the feature diff is relative to that branch. The paired UI branch is `fix/contract-input-validation`. Do not deploy the UI validation flow before the corresponding backend endpoint is available.
 
 ## Inputs
 
