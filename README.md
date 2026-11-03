@@ -252,4 +252,4 @@ Docker will repopulate it on next start.
 
 Workload and environment inputs are validated against the embedded CCRT schema before encryption, separately or as a complete plaintext contract. Builds use one runtime encryption certificate for workload, environment and attestation. See [contract input validation and encryption](docs/contract-input-validation.md) for accepted formats, verification and compatibility limits.
 
-Deploy this backend before releasing the paired UI validation change: the UI requires `POST /v2/contract-validate`. Existing unpinned builds cannot retrospectively verify the encryption recipient of older sections. No database migration is added by this change.
+The paired UI uses `POST /v2/contract-validate` when available and retains local syntax/section review on older servers returning 404. Backend and UI changes can be released independently; full schema validation requires this backend. Existing unpinned builds cannot retrospectively verify the encryption recipient of older sections. No database migration is added by this change.
