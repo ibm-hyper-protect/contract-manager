@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"strings"
 
-	hpcertificate "github.com/ibm-hyper-protect/contract-go/v2/certificate"
 	hpcontract "github.com/ibm-hyper-protect/contract-go/v2/contract"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract"
@@ -308,39 +307,4 @@ func parseRSAPrivateKey(privateKeyPEM, password string) (*rsa.PrivateKey, error)
 		return nil, fmt.Errorf("private key is not RSA")
 	}
 	return key, nil
-}
-
-// ListAvailableEncCertVersions returns the list of available encryption certificate versions
-// by calling HpcrListAvailableEncCertVersions from contract-go certificate package.
-// It returns all available certificate versions in JSON format.
-func (e *Engine) ListAvailableEncCertVersions(ctx context.Context) ([]string, error) {
-	_ = ctx
-	// Get all available certificate versions in JSON format
-	// Empty osType returns all OS types, "json" format returns structured data
-	versionsJSON, err := hpcertificate.HpcrListAvailableEncCertVersions("", "json")
-	if err != nil {
-		return nil, fmt.Errorf("failed to list available encryption certificate versions: %w", err)
-	}
-
-	// Parse the JSON response to extract version strings
-	var certData map[string][]string
-	if err := json.Unmarshal([]byte(versionsJSON), &certData); err != nil {
-		return nil, fmt.Errorf("failed to parse certificate versions JSON: %w", err)
-	}
-
-	// Collect all unique versions from all OS types
-	versionSet := make(map[string]bool)
-	for _, versions := range certData {
-		for _, version := range versions {
-			versionSet[version] = true
-		}
-	}
-
-	// Convert set to slice
-	result := make([]string, 0, len(versionSet))
-	for version := range versionSet {
-		result = append(result, version)
-	}
-
-	return result, nil
 }

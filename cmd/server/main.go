@@ -179,6 +179,7 @@ func main() {
 			r.Post(prefix+"/contract-template", contractHandler.GetContractTemplate)
 			r.Post(prefix+"/contract-validate", contractHandler.ValidateContract)
 			r.Get(prefix+"/encryption-certificates/versions", contractHandler.ListAvailableEncCertVersions)
+			r.Get(prefix+"/encryption-certificates/certificate", contractHandler.GetEncryptionCertificate)
 		}
 
 		r.Route("/builds", func(r chi.Router) {

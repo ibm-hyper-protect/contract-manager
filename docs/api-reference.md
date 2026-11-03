@@ -569,12 +569,42 @@ Auth required. Signature headers required.
 
 ### `GET /v2/encryption-certificates/versions`
 
-Auth required.
+Auth and completed account setup required. Also available without `/v2`.
+
+The pinned contract-go v2.37.0 library supplies four distinct identifiers: `ccrt`, `ccrv`, `ccco`, `hpvs`. Preserve their associations rather than treating IBM Cloud regions as platforms. Versions are sorted newest first; platform entries are ordered by identifier. The existing flat `versions` list remains available for older clients.
+
+**Response `200`** (abbreviated example)
+```json
+{
+  "versions": ["26.7.2", "26.5.0", "26.4.1", "26.4.0", "26.2.0", "25.12.0", "25.10.0", "25.8.1", "1.0.29", "1.0.28", "1.0.27"],
+  "platforms": [
+    { "id": "ccrt", "versions": ["26.7.2", "26.5.0", "26.2.0"], "contract_supported": true }
+  ]
+}
+```
+
+`contract_supported` describes this application's contract workflow, currently CCRT only. A library certificate catalog entry does not enable another platform's schema or export format. Current upstream v3 documentation treats HPVS as a CCRT alias; do not apply those semantics to this pinned v2 catalog.
+
+The catalog includes the library's historical versions. A lookup rejects a certificate that is expired, not yet valid or unsuitable for encryption; users must select a usable certificate matching their actual installed runtime. This is a library snapshot, not a live IBM release feed.
+
+### `GET /v2/encryption-certificates/certificate?platform=ccrt&version=26.7.2`
+
+Auth and completed account setup required. Also available without `/v2`. Supply exactly one nonempty `platform` and `version`. Platform input is case-insensitive. Unknown pairs return `404`; incomplete/duplicate parameters and unusable certificates return `400` with a structured application error. No user-provided URL or filesystem path is accessed.
 
 **Response `200`**
 ```json
-{ "versions": ["1.0.0", "1.1.0"] }
+{
+  "platform": "ccrt",
+  "version": "26.7.2",
+  "certificate_pem": "-----BEGIN CERTIFICATE-----\n...",
+  "fingerprint_sha256": "9e2a411b34f1917cc0ec8171b46da9f21985193610e6f065244cffe4036695ea",
+  "not_before": "2026-07-06T18:16:20Z",
+  "not_after": "2027-06-20T23:59:59Z",
+  "contract_supported": true
+}
 ```
+
+The fingerprint is SHA-256 over the certificate's DER bytes. Both endpoints send `Cache-Control: no-store`; submission rechecks certificate validity and the build's pinned recipient.
 
 ---
 
@@ -824,6 +854,7 @@ Revokes the expired public key for the specified user.
 | GET | `/builds/{id}/keys/signing/public` | ✓ | assigned | — |
 | POST | `/v2/contract-template` | ✓ | any | ✓ |
 | GET | `/v2/encryption-certificates/versions` | ✓ | any | — |
+| GET | `/v2/encryption-certificates/certificate` | ✓ | any | — |
 | POST | `/builds/{id}/v2/sections/workload` | ✓ | assigned | ✓ |
 | POST | `/builds/{id}/v2/sections/environment` | ✓ | assigned | ✓ |
 | POST | `/builds/{id}/v2/finalize` | ✓ | AUDITOR | ✓ |

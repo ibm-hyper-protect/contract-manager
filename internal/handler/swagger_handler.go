@@ -697,6 +697,166 @@ const openAPISpecJSON = `{
         }
       }
     },
+    "/v2/encryption-certificates/versions": {
+      "get": {
+        "summary": "List runtime certificate platforms and versions",
+        "description": "Uses the pinned contract-go v2 catalog. Preserves the legacy flat versions list and adds deterministic per-platform versions. Catalog presence does not imply support for that contract workflow. The unprefixed alias is also available.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Platform catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "versions",
+                    "platforms"
+                  ],
+                  "properties": {
+                    "versions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "platforms": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "versions",
+                          "contract_supported"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "versions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "contract_supported": {
+                            "type": "boolean",
+                            "description": "Whether the current contract workflow supports this platform; currently CCRT only."
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Account setup incomplete"
+          },
+          "500": {
+            "description": "Catalog unavailable"
+          }
+        }
+      }
+    },
+    "/v2/encryption-certificates/certificate": {
+      "get": {
+        "summary": "Get an exact embedded runtime encryption certificate",
+        "description": "Returns a currently valid RSA encryption certificate and its SHA-256 DER fingerprint. No remote URL is fetched. The platform/version pair must exist in the pinned library. The unprefixed alias is also available.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "platform",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public certificate and metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "platform",
+                    "version",
+                    "certificate_pem",
+                    "fingerprint_sha256",
+                    "not_before",
+                    "not_after",
+                    "contract_supported"
+                  ],
+                  "properties": {
+                    "platform": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "certificate_pem": {
+                      "type": "string"
+                    },
+                    "fingerprint_sha256": {
+                      "type": "string"
+                    },
+                    "not_before": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "not_after": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "contract_supported": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing/duplicate parameters or certificate is not currently usable"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Account setup incomplete"
+          },
+          "404": {
+            "description": "Unknown platform/version pair"
+          },
+          "500": {
+            "description": "Embedded certificate unavailable"
+          }
+        }
+      }
+    },
     "/builds/{id}/attestation/status": {
       "get": {
         "summary": "Get attestation verification status",
