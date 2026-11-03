@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 
@@ -70,14 +69,8 @@ func (p *Provider) createKey(ctx context.Context, buildID, actorID uuid.UUID, ke
 
 	switch mode {
 	case model.BuildKeyModeGenerate:
-		// Passphrase is mandatory for key generation
-		if passphrase == nil || strings.TrimSpace(*passphrase) == "" {
-			return keymgmt.KeyRecord{}, fmt.Errorf("passphrase is required for key generation")
-		}
-
-		// Validate passphrase strength
-		if err := appcrypto.ValidatePassphraseStrength(*passphrase); err != nil {
-			return keymgmt.KeyRecord{}, fmt.Errorf("weak passphrase: %w", err)
+		if err := keymgmt.ValidateGenerationPassphrase(mode, passphrase); err != nil {
+			return keymgmt.KeyRecord{}, err
 		}
 
 		// Generate RSA-4096 key pair with passphrase-encrypted private key

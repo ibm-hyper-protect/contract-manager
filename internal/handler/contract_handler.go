@@ -230,8 +230,7 @@ func (h *ContractHandler) FinalizeContract(w http.ResponseWriter, r *http.Reques
 			writeError(w, appErr)
 			return
 		}
-		// Include actual error message for debugging
-		writeError(w, model.ErrInternal("Failed to finalize contract: "+err.Error()))
+		writeError(w, model.ErrInternal("Failed to finalize contract."))
 		return
 	}
 

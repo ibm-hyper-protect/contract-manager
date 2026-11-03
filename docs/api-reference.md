@@ -466,6 +466,14 @@ Auth required. Build access required. Both paths are equivalent.
 
 ## 8. Key management
 
+In `generate` mode, passphrases require at least 12 characters, an uppercase
+letter, a lowercase letter, a digit and a special character. Missing or weak
+passphrases return `400 INVALID_REQUEST` with the specific unmet rule before
+keys or certificate pins are stored. `upload_public` does not require a passphrase.
+Passphrases are used exactly as entered, including leading and trailing spaces.
+Keep the signing-key passphrase for finalization and the attestation-key passphrase
+for evidence verification; they are separate from the account login password.
+
 ### `POST /builds/{id}/keys/signing`
 
 Auth required. Role: `AUDITOR`. Build access required. Signature headers required.
@@ -474,7 +482,7 @@ Auth required. Role: `AUDITOR`. Build access required. Signature headers require
 ```json
 {
   "mode": "generate",
-  "passphrase": "strong-passphrase-for-key-encryption"
+  "passphrase": "Example!Signing2026"
 }
 ```
 
@@ -510,7 +518,7 @@ Auth required. Role: `AUDITOR`. Build access required. Signature headers require
 ```json
 {
   "mode": "generate",
-  "passphrase": "strong-passphrase",
+  "passphrase": "Example!Attestation2026",
   "encryption_cert_pem": "-----BEGIN CERTIFICATE-----\n..."
 }
 ```
@@ -633,6 +641,17 @@ Auth required. Role: `AUDITOR`. Build access required. Signature headers require
   "contract_yaml_length": 12345
 }
 ```
+
+Missing or incorrect signing-key passphrases return `400 INVALID_REQUEST` with
+instructions to use the passphrase set at registration. These failures leave the
+build editable so the request can be retried. Malformed or unavailable stored
+private keys return a generic `500 INTERNAL_ERROR`, rather than being described
+as an incorrect passphrase. Uploaded signing public keys have no stored private
+key and cannot be used for backend finalization.
+
+Likewise, missing or incorrect attestation-key passphrases return
+`400 INVALID_REQUEST` before evidence verification is recorded; the evidence
+stays `UPLOADED` for retry instead of being rejected.
 
 Transitions build: `ATTESTATION_KEY_REGISTERED → FINALIZED`
 
