@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ── Stage 1: Build ──────────────────────────────────────────────────
-FROM docker.io/golang:1.26-alpine AS builder
+FROM docker.io/golang:1.27-alpine AS builder
 
 WORKDIR /src
 
@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
 
 # ── Stage 2: Runtime ───────────────────────────────────────────────
-FROM docker.io/golang:1.26-alpine
+FROM docker.io/golang:1.27-alpine
 
 RUN apk add --no-cache ca-certificates tzdata openssl \
   && addgroup -S app \
