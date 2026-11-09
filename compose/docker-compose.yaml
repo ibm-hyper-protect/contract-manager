@@ -99,6 +99,10 @@ services:
       ADMIN_NAME: ${ADMIN_NAME:?ADMIN_NAME must be set}
       ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL must be set}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}
+      APPID_CLIENT_ID: ${APPID_CLIENT_ID:-}
+      APPID_CLIENT_SECRET: ${APPID_CLIENT_SECRET:-}
+      APPID_OAUTH_SERVER_URL: ${APPID_OAUTH_SERVER_URL:-}
+      APPID_REDIRECT_URI: ${APPID_REDIRECT_URI:-}
     depends_on:
       postgres:
         condition: service_healthy

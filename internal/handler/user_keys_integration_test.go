@@ -119,7 +119,7 @@ func TestUserKeysHTTP(t *testing.T) {
 	h := NewUserHandler(users, keys, logs)
 	kh := NewUserKeyHandler(keys, logs)
 	rh := NewRotationHandler(service.NewRotationService(q), logs)
-	ah := NewAuthHandler(auth, logs)
+	ah := NewAuthHandler(auth, service.NewOIDCService("", "", "", ""), logs)
 	audit := service.NewAuditService(q)
 	export := NewExportHandler(service.NewExportService(q, audit, service.NewAssignmentService(q, audit)), service.NewVerificationService(q), logs)
 	build, err := q.CreateBuild(ctx, repository.CreateBuildParams{Name: "Key audit test", CreatedBy: owner})

@@ -194,6 +194,17 @@ All variables are set in `compose/.env`. The table below lists those that **must
 
 > `DATABASE_URL` and `MIGRATE_DATABASE_URL` in `.env.example` use `${POSTGRES_*}` variable interpolation — if your shell or Docker Compose version does not expand these, set them explicitly as literal strings.
 
+### Optional: SSO (IBM w3id)
+
+SSO login is disabled unless **all four** variables below are set. Users must already exist (matched by email); SSO never creates accounts, and password login keeps working.
+
+| Variable | Description |
+|---|---|
+| `APPID_CLIENT_ID` | OIDC client ID registered for the application |
+| `APPID_CLIENT_SECRET` | OIDC client secret |
+| `APPID_OAUTH_SERVER_URL` | Base URL of the OIDC endpoint (without `/authorize`) |
+| `APPID_REDIRECT_URI` | Redirect URI registered with the provider; must match exactly |
+
 ---
 
 ## Development
