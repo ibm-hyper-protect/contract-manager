@@ -28,7 +28,7 @@ go vet ./...
 gofmt -w .
 
 # Regenerate SQLC repository code (after editing SQL in internal/repository/queries/)
-sqlc generate
+./scripts/generate-repository.sh
 ```
 
 > There is no Makefile. All commands are run from the repo root.
@@ -51,7 +51,7 @@ internal/keymgmt/       → KeyProvider interface; db and mock implementations
 ## Critical Non-Obvious Patterns
 
 ### Database layer
-- `internal/repository/*.sql.go` files are **SQLC-generated** — never edit them manually. Edit `.sql` files in `internal/repository/queries/` then run `sqlc generate`.
+- `internal/repository/*.sql.go` files are **SQLC-generated** — never edit them manually. Edit `.sql` files in `internal/repository/queries/` then run `./scripts/generate-repository.sh`.
 - `v2_store.go` contains **raw SQL** (not SQLC) for tables not yet in migrations that SQLC processes. New tables should prefer adding to queries/ and regenerating.
 - `pgtype.Timestamptz` is used for nullable timestamps; convert to `*time.Time` before returning from service layer (see `auth_service.go` for the pattern).
 
@@ -66,7 +66,9 @@ internal/keymgmt/       → KeyProvider interface; db and mock implementations
 - Call `drainBody(r)` before returning on early-exit paths where the body was not fully consumed.
 
 ### Signature middleware
-- Every authenticated **mutating** request (POST/PUT/PATCH/DELETE) requires `X-Signature`, `X-Signature-Hash`, and `X-Timestamp` headers — **except** `/auth/logout`, `PATCH .../password`, and `PUT .../public-key` (setup-exempt).
+- Every authenticated **mutating** request (POST/PUT/PATCH/DELETE) requires `X-Signature`, `X-Signature-Hash`, and `X-Timestamp` headers — **except** `/auth/logout` and `PATCH .../password`. `PUT .../public-key` is exempt only when the caller has zero active keys.
+- `X-Key-Fingerprint` selects an active identity key from `user_public_keys`. Without this header, verification succeeds only when exactly one key is active. Use the verified signing key from the request context for audit records and download receipts.
+- Identity key changes go through `UserKeyService`; registration and revocation lock the user row. Registration requires password confirmation after any key history and allows at most five active keys. Do not read or update the deprecated `users.public_key*` columns.
 - The signed payload is JSON: `{"method":"POST","path":"/builds","data":<body>,"timestamp":<ms>}`.
 
 ### RBAC middleware

@@ -93,6 +93,10 @@ curl http://localhost:8080/health
 
 > **First login:** Every new account (including the seeded admin) must complete a mandatory setup flow before accessing any functionality: change the initial password, generate an RSA-4096 key pair, and register the public key.
 
+Each client may register its own identity key: at most five active RSA-4096 keys per user, each valid for 90 days. Later registrations require password confirmation and, while an active key exists, a request signed with that key. Owners and admins can revoke individual keys; admins can also revoke all active keys. See the [API reference](docs/api-reference.md#put-usersidpublic-key) and [multi-key testing guide](docs/multi-key-testing.md).
+
+Existing clients remain compatible for normal use with one active key. Clients must update their registration flow before renewing keys or adding devices, and select the local key's fingerprint for signed requests instead of using the newest key returned by login.
+
 ---
 
 ## Day-to-Day Operations
@@ -149,7 +153,7 @@ docker compose -f compose/docker-compose.yaml --project-directory compose \
 │   ├── middleware/         # Auth, RBAC, signature, rate-limit, setup guard
 │   ├── model/              # Domain types + AppError constructors
 │   ├── repository/         # SQLC-generated DB layer (do not edit *.sql.go)
-│   ├── repository/queries/ # SQL source files — edit these, then run sqlc generate
+│   ├── repository/queries/ # SQL source files — edit these, then run ./scripts/generate-repository.sh
 │   └── service/            # Business logic
 ├── migrations/             # golang-migrate SQL files (020 migrations)
 ├── compose/
@@ -212,10 +216,11 @@ gofmt -w .
 After editing any `.sql` file under `internal/repository/queries/`:
 
 ```bash
-sqlc generate
+./scripts/generate-repository.sh
 ```
 
-> Never edit `internal/repository/*.sql.go` directly — they are overwritten by `sqlc generate`.
+> Never edit `internal/repository/*.sql.go` directly — they are overwritten by `./scripts/generate-repository.sh`.
+> The script runs SQLC and copies license headers from the SQL source files into the generated query files.
 
 ---
 
