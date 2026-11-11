@@ -17,7 +17,7 @@ limitations under the License.
 
 # Contract input validation and encryption
 
-This change is separate from the multiple-device-key feature. It builds on the server entrypoint in PR #7; the feature diff is relative to that branch. The paired UI branch is `fix/contract-input-validation`. Do not deploy the UI validation flow before the corresponding backend endpoint is available.
+This change is separate from the multiple-device-key feature. Server entrypoint PR #7 is merged, and this branch is synchronized with upstream main; the feature diff can be reviewed directly against main. The paired UI branch is `fix/contract-input-validation`. Do not deploy the UI validation flow before the corresponding backend endpoint is available.
 
 ## Inputs
 
