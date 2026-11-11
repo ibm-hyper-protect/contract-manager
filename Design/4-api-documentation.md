@@ -618,7 +618,7 @@ All paths below are relative to backend root.
 - Request:
 
 ```json
-{"new_password":"NewStrongPass123!"}
+{"new_password":"<your-new-password>"}
 ```
 
 - Response `200`:
@@ -702,7 +702,7 @@ Errors include `403 PASSWORD_CONFIRMATION_FAILED`, `409 KEY_ALREADY_REGISTERED` 
 - Request:
 
 ```json
-{"new_password":"NewStrongPass123!"}
+{"new_password":"<your-new-password>"}
 ```
 
 - Response `200`:
