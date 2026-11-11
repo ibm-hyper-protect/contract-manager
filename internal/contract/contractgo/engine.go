@@ -211,43 +211,6 @@ func (e *Engine) HpcrGetAttestationRecords(ctx context.Context, data, privateKey
 	return string(plaintext), nil
 }
 
-// HpcrVerifySignatureAttestationRecords verifies attestation signature against
-// attestation cert/public key using the same backend signature semantics.
-func (e *Engine) HpcrVerifySignatureAttestationRecords(ctx context.Context, attestationRecords, signature, attestationCert string) error {
-	_ = ctx
-	signature = strings.TrimSpace(signature)
-	if signature == "" {
-		return fmt.Errorf("attestation signature is empty")
-	}
-
-	verifyKey := strings.TrimSpace(attestationCert)
-	if verifyKey == "" {
-		return fmt.Errorf("attestation certificate/public key is required")
-	}
-
-	// Allow either PEM certificate or PEM public key.
-	if cert, err := appcrypto.ParseCertificatePEM(verifyKey); err == nil {
-		pub, ok := cert.PublicKey.(*rsa.PublicKey)
-		if !ok {
-			return fmt.Errorf("attestation certificate does not contain RSA public key")
-		}
-		pubDER, err := x509.MarshalPKIXPublicKey(pub)
-		if err != nil {
-			return fmt.Errorf("failed to marshal attestation certificate public key: %w", err)
-		}
-		verifyKey = string(pem.EncodeToMemory(&pem.Block{
-			Type:  "PUBLIC KEY",
-			Bytes: pubDER,
-		}))
-	}
-
-	recordsHash := appcrypto.SHA256HexString(attestationRecords)
-	if err := appcrypto.VerifySignature(verifyKey, recordsHash, signature); err != nil {
-		return fmt.Errorf("attestation signature verification failed: %w", err)
-	}
-	return nil
-}
-
 func parseEncryptionPublicKey(certPEM string) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode([]byte(certPEM))
 	if block == nil {
