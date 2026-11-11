@@ -1,6 +1,6 @@
 # IBM Confidential Computing Contract Manager
 
-A persona-governed, cryptographically auditable contract lifecycle system for IBM Hyper Protect Container Runtime (HPCR) deployments.
+A persona-governed, cryptographically auditable contract lifecycle system for IBM Confidential Computing Container Runtime (CCRT) deployments.
 
 ---
 
@@ -252,3 +252,9 @@ The postgres data directory is written by the postgres container running as its 
 mkdir -p compose/data/postgres
 ```
 Docker will repopulate it on next start.
+
+## Contract validation and runtime encryption
+
+Workload and environment inputs are validated against the embedded CCRT schema before encryption, separately or as a complete plaintext contract. Builds use one runtime encryption certificate for workload, environment and attestation. See [contract input validation and encryption](docs/contract-input-validation.md) for accepted formats, verification and compatibility limits.
+
+Deploy this backend before releasing the paired UI validation change: the UI requires `POST /v2/contract-validate`. Existing unpinned builds cannot retrospectively verify the encryption recipient of older sections. No database migration is added by this change.

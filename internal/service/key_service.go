@@ -147,6 +147,14 @@ func (s *KeyService) RegisterAttestationKey(
 		return nil, nil, err
 	}
 
+	if encryptionCertPEM == nil || strings.TrimSpace(*encryptionCertPEM) == "" {
+		return nil, nil, model.ErrInvalidRequest("encryption certificate is required for the attestation public key")
+	}
+
+	if err := pinBuildEncryptionCertificate(ctx, s.queries, buildID, *encryptionCertPEM, model.StatusEnvironmentStaged); err != nil {
+		return nil, nil, err
+	}
+
 	providerRecord, exportToken, err := s.keyProvider.CreateAttestationKey(ctx, buildID, actorID, mode, publicKey, passphrase)
 	if err != nil {
 		return nil, nil, err

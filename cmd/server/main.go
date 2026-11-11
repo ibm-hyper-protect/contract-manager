@@ -182,6 +182,7 @@ func main() {
 		// Contract helpers (registered with and without the /v2 prefix used by the desktop app)
 		for _, prefix := range []string{"", "/v2"} {
 			r.Post(prefix+"/contract-template", contractHandler.GetContractTemplate)
+			r.Post(prefix+"/contract-validate", contractHandler.ValidateContract)
 			r.Get(prefix+"/encryption-certificates/versions", contractHandler.ListAvailableEncCertVersions)
 		}
 
@@ -195,6 +196,7 @@ func main() {
 				r.Get("/", buildHandler.GetBuild)
 				r.With(middleware.RequireRole(admin, auditor)).Post("/cancel", buildHandler.CancelBuild)
 
+				r.Get("/sections", contractHandler.ListSections)
 				r.Get("/audit", auditHandler.GetAuditTrail)
 				r.Get("/audit-trail", auditHandler.GetAuditTrail)
 

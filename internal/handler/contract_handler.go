@@ -238,3 +238,18 @@ func (h *ContractHandler) FinalizeContract(w http.ResponseWriter, r *http.Reques
 	logSystemEvent(h.systemLogService, r, "unknown", "CONTRACT_FINALIZED", "Build: "+buildID.String(), "SUCCESS", "Finalized contract")
 	writeJSON(w, http.StatusOK, result)
 }
+
+// ListSections handles GET /builds/{id}/sections under RequireBuildAccess.
+func (h *ContractHandler) ListSections(w http.ResponseWriter, r *http.Request) {
+	buildID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, model.ErrInvalidRequest("Invalid build ID."))
+		return
+	}
+	sections, err := h.contractService.ListSections(r.Context(), buildID)
+	if err != nil {
+		writeError(w, model.ErrInternal("Failed to list build sections."))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"sections": sections})
+}

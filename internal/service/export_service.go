@@ -240,7 +240,7 @@ type GetUserDataOutput struct {
 }
 
 // GetUserData returns the decoded contract YAML for ENV_OPERATOR deployment.
-// This is the final step before deploying to HPCR instances.
+// This is the final step before deploying to CCRT instances.
 func (s *ExportService) GetUserData(ctx context.Context, buildID, userID uuid.UUID) (*GetUserDataOutput, error) {
 	// 1. Get build
 	build, err := s.queries.GetBuildByID(ctx, buildID)

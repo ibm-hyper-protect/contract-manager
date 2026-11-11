@@ -420,13 +420,13 @@ Downloaded and cancelled builds are treated as terminal/completed in list and ho
   - line numbers
   - tab indentation support
   - scroll-sync line gutter
-- builtin or custom HPCR cert support when required
+- builtin or custom runtime encryption certificate support when required
 - terminal-style streamed logs for encryption steps
 
 Flow differences:
 
-- **Solution Provider (v2)**: submit plaintext + HPCR cert to backend `POST /builds/{id}/v2/sections/workload`; backend performs encryption.
-- **Data Owner (v2)**: submit plaintext + HPCR cert to backend `POST /builds/{id}/v2/sections/environment`; backend performs encryption.
+- **Solution Provider (v2)**: submit plaintext + runtime encryption certificate to backend `POST /builds/{id}/v2/sections/workload`; backend performs encryption.
+- **Data Owner (v2)**: submit plaintext + runtime encryption certificate to backend `POST /builds/{id}/v2/sections/environment`; backend performs encryption.
 
 Request signatures are still required for mutating API calls and are produced using the actor's identity private key.
 
@@ -448,7 +448,7 @@ Session-scoped context is stored in `sessionStorage` and reused by finalization.
 `FinaliseContract.jsx`:
 
 - submits finalize request to backend (`/builds/{id}/v2/finalize`) with selected key ids/certs
-- backend performs contract assembly, HPCR signing, hash generation, and persistence
+- backend performs contract assembly, contract signing, hash generation, and persistence
 - updates status to `FINALIZED`
 
 ## 11.6 Export Contract Stage

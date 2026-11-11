@@ -44,7 +44,7 @@ The platform is designed to:
    - validates signatures
    - stores encrypted payloads, hashes, and audit events
    - stores build signing/attestation private keys encrypted at rest in PostgreSQL (`build_keys_private`, AES-256-CBC)
-   - decrypts key material transiently using caller-supplied passphrase for HPCR operations; zeroizes after use
+   - decrypts key material transiently using caller-supplied passphrase for contract operations; zeroizes after use
 3. **Network:**
    - traffic intended through nginx reverse proxy
    - TLS termination at proxy in production mode
@@ -220,7 +220,7 @@ After acknowledgment:
 ### 8.2 Key Ownership
 
 - **Identity private keys** remain client-side (Electron). Never transmitted.
-- **Build signing/attestation private keys** are stored encrypted at rest in PostgreSQL (`build_keys_private` table, AES-256-CBC PEM format). They are decrypted transiently in backend memory only when required for HPCR operations (`HpcrContractSign`, `HpcrGetAttestationRecords`), using the caller-supplied passphrase; private key bytes are zeroized after use and are never returned to clients or written to logs.
+- **Build signing/attestation private keys** are stored encrypted at rest in PostgreSQL (`build_keys_private` table, AES-256-CBC PEM format). They are decrypted transiently in backend memory only when required for contract operations (`HpcrContractSign`, `HpcrGetAttestationRecords`), using the caller-supplied passphrase; private key bytes are zeroized after use and are never returned to clients or written to logs.
 - Backend stores identity public keys + fingerprints + expiry metadata.
 - Backend stores build key public keys (`build_keys`) and AES-256-CBC encrypted private key PEM blobs (`build_keys_private`).
 - Backend verification always uses registered keys, never caller-supplied verification keys.

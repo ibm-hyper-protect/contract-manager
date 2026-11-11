@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	contractengine "github.com/ibm-hyper-protect/contract-manager/internal/contract"
+	"github.com/ibm-hyper-protect/contract-manager/internal/contract/validation"
 	appcrypto "github.com/ibm-hyper-protect/contract-manager/internal/crypto"
 	"github.com/ibm-hyper-protect/contract-manager/internal/model"
 	"github.com/ibm-hyper-protect/contract-manager/internal/repository"
@@ -79,8 +79,6 @@ type FinalizeContractV2Result struct {
 	ContractYAMLLength int    `json:"contract_yaml_length"`
 }
 
-var signingKeyYAMLPattern = regexp.MustCompile(`(?im)^[\t ]*signingkey[\t ]*:`)
-
 func (s *ContractService) GetContractTemplate(ctx context.Context, templateType string) (string, string, error) {
 	normalized := strings.ToLower(strings.TrimSpace(templateType))
 	switch normalized {
@@ -116,9 +114,20 @@ func (s *ContractService) SubmitWorkloadSection(ctx context.Context, in SubmitSe
 		return nil, model.ErrInvalidRequest("certificate PEM is required")
 	}
 
-	encryptedPayload, err := s.engine.EncryptString(ctx, in.Plaintext, in.CertificatePEM)
+	sectionData, err := validation.Validate(in.Plaintext, "workload")
+	if err != nil {
+		return nil, model.ErrInvalidRequest(err.Error())
+	}
+	plaintext, err := validation.MarshalSection(sectionData)
+	if err != nil {
+		return nil, model.ErrInvalidRequest("invalid workload YAML")
+	}
+	encryptedPayload, err := s.engine.EncryptString(ctx, plaintext, in.CertificatePEM)
 	if err != nil {
 		return nil, model.ErrInvalidCertificate(fmt.Sprintf("failed to encrypt workload with provided certificate: %v", err))
+	}
+	if err := pinBuildEncryptionCertificate(ctx, s.queries, in.BuildID, in.CertificatePEM, model.StatusSigningKeyRegistered); err != nil {
+		return nil, err
 	}
 	sectionHash := appcrypto.SHA256HexString(encryptedPayload)
 	signature := valueOrEmpty(in.RequestSignature)
@@ -166,6 +175,9 @@ func (s *ContractService) SubmitEnvironmentSection(ctx context.Context, in Submi
 	encryptedPayload, err := s.engine.EncryptString(ctx, envPayload, in.CertificatePEM)
 	if err != nil {
 		return nil, model.ErrInvalidCertificate(fmt.Sprintf("failed to encrypt environment with provided certificate: %v", err))
+	}
+	if err := pinBuildEncryptionCertificate(ctx, s.queries, in.BuildID, in.CertificatePEM, model.StatusWorkloadSubmitted); err != nil {
+		return nil, err
 	}
 	sectionHash := appcrypto.SHA256HexString(encryptedPayload)
 	signature := valueOrEmpty(in.RequestSignature)
@@ -315,15 +327,22 @@ func (s *ContractService) FinalizeContract(ctx context.Context, in FinalizeContr
 		return nil, model.ErrInvalidRequest("workload and environment sections are required before finalization")
 	}
 
+	// Finalization accepts only encrypted, well-formed section envelopes.
+	if err := validation.EncryptedSection(workloadEnc); err != nil {
+		return nil, model.ErrInvalidRequest("invalid encrypted workload")
+	}
+	if err := validation.EncryptedSection(envEnc); err != nil {
+		return nil, model.ErrInvalidRequest("invalid encrypted environment")
+	}
 	// Attestation public key is already encrypted during registration
 	attestationPayload := strings.TrimSpace(attestationKey.PublicKey)
-	if strings.TrimSpace(attestationPayload) == "" {
-		return nil, model.ErrInvalidRequest("attestation public key is empty")
+	if err := validation.EncryptedSection(attestationPayload); err != nil {
+		return nil, model.ErrInvalidRequest("attestation public key must be encrypted before finalization")
 	}
 
 	privateKeyPEM, err := s.keyProvider.GetPrivateKey(ctx, signingKey.ID)
 	if err != nil {
-		return nil, model.ErrInvalidRequest("signing private key is unavailable for HPCR signing")
+		return nil, model.ErrInvalidRequest("signing private key is unavailable for contract signing")
 	}
 	defer zeroizeBytes(privateKeyPEM)
 
@@ -408,28 +427,31 @@ func zeroizeBytes(b []byte) {
 }
 
 func ensureEnvironmentHasSigningKey(plaintext, signingKey string) (string, error) {
-	trimmed := strings.TrimSpace(plaintext)
-	if trimmed == "" {
-		return "", fmt.Errorf("plaintext environment is required")
+	section, err := validation.Validate(plaintext, "env")
+	if err != nil {
+		return "", err
 	}
-	if signingKeyYAMLPattern.MatchString(trimmed) {
-		return trimmed, nil
-	}
-
-	trimmedSigningKey := strings.TrimSpace(signingKey)
-	if trimmedSigningKey == "" {
+	if strings.TrimSpace(signingKey) == "" {
 		return "", fmt.Errorf("signing key is unavailable for environment section")
 	}
-
-	var b strings.Builder
-	b.WriteString(trimmed)
-	b.WriteString("\n")
-	b.WriteString("signingKey: |-\n")
-	for _, line := range strings.Split(trimmedSigningKey, "\n") {
-		b.WriteString("  ")
-		b.WriteString(strings.TrimRight(line, "\r"))
-		b.WriteString("\n")
+	if supplied, exists := section["signingKey"]; exists {
+		key, ok := supplied.(string)
+		suppliedFingerprint, suppliedErr := appcrypto.ComputePublicKeyFingerprint(key)
+		expectedFingerprint, expectedErr := appcrypto.ComputePublicKeyFingerprint(signingKey)
+		if !ok || suppliedErr != nil || expectedErr != nil || suppliedFingerprint != expectedFingerprint {
+			return "", fmt.Errorf("environment signingKey must match the build's registered signing key; remove it to insert that key automatically")
+		}
 	}
+	section["signingKey"] = strings.TrimSpace(signingKey)
+	return validation.MarshalSection(section)
+}
 
-	return b.String(), nil
+// ListSections returns the encrypted sections for an accessible build.
+// HTTP callers must enforce build access before invoking this method.
+func (s *ContractService) ListSections(ctx context.Context, buildID uuid.UUID) ([]repository.GetBuildSectionsByBuildIDRow, error) {
+	sections, err := s.queries.GetBuildSectionsByBuildID(ctx, buildID)
+	if err != nil {
+		return nil, fmt.Errorf("list build sections: %w", err)
+	}
+	return sections, nil
 }

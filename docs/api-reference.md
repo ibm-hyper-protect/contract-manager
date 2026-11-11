@@ -558,13 +558,13 @@ Auth required. Role: `AUDITOR`. Build access required. Signature headers require
 }
 ```
 
-`encryption_cert_pem` is required in `generate` mode — the attestation public key is encrypted with the HPCR certificate before storage.
+`encryption_cert_pem` is required in both `generate` and `import` modes — the attestation public key is encrypted with the runtime encryption certificate before storage.
 
 **Response `201`**
 ```json
 {
   "attestation_key_id": "uuid",
-  "public_key": "<hpcr-encrypted-public-key>",
+  "public_key": "<encrypted-attestation-public-key>",
   "fingerprint": "SHA256:...",
   "mode": "generate"
 }
@@ -625,7 +625,7 @@ Auth required.
 
 Auth required. Build access required. Signature headers required. Max body: **50 MB**.
 
-Backend encrypts `plaintext` using the HPCR contract engine with the provided certificate.
+Backend encrypts `plaintext` using the CCRT contract engine with the provided certificate.
 
 **Request**
 ```json
@@ -886,3 +886,21 @@ Revokes only expired, unrevoked public keys for the specified user and records t
 | POST | `/rotation/revoke-key/{user_id}` | ✓ | ADMIN | ✓ |
 
 **Auth** `✓` Bearer token required &nbsp;·&nbsp; **Sig** `✓` X-Signature headers required &nbsp;·&nbsp; `✗` explicitly exempt &nbsp;·&nbsp; `—` read-only / no mutation
+
+## Plaintext contract validation
+
+`POST /v2/contract-validate` (also `/contract-validate`) requires authentication and a signed request.
+
+```json
+{"section":"workload","plaintext":"type: workload\nplay:\n  resources: []\n"}
+```
+
+`section` is `workload`, `env`, or an empty string for both. Use raw section YAML for individual validation. Complete plaintext contracts must contain both `workload` and `env`, as mappings or YAML block scalars; both are validated even when requesting only one. The sample empty resources list is intentionally incomplete and is rejected. Successful responses contain `valid: true`, `platform: "ccrt"` and normalized `plaintext`. The helper does not store input. CCRT is the platform currently configured by this workflow; this endpoint does not claim validation for CCRV or CCCO.
+
+Both submission endpoints repeat schema validation before encryption. Complete inputs also check shared volume declarations and seed availability. Separate submissions cannot compare plaintext against a previously encrypted counterpart without the runtime's private key; they are checked independently. Workload, environment and attestation encryption use the same certificate pinned to the build. Existing builds without a stored certificate pin the certificate on their next submission; the recipient of previously encrypted sections cannot be inferred retrospectively.
+
+The environment signing key is inserted from the build's registered signing key. A supplied conflicting key is rejected. An attestation encryption certificate is required. Finalization checks all encrypted envelopes and signs the workload/environment pair. The wire identifiers `hyper-protect-basic` and `contract-basic`, legacy resource/database names and upstream `Hpcr*` library APIs remain compatible.
+
+The current encryption format uses RSA PKCS#1 v1.5 to wrap a random password and OpenSSL AES-256-CBC/PBKDF2 for section data. Password randomness is Base64 encoded before OpenSSL's line-oriented input; binary ciphertext is never written through text helpers that trim whitespace. Temporary files are private and removed after the operation. The final workload/environment signature detects modifications; successful decryption alone does not authenticate a contract. UI submission sends plaintext to the backend, so production transport must use HTTPS.
+
+`GET /builds/{id}/sections` returns encrypted sections under the same build-access guard as the other build resources.
