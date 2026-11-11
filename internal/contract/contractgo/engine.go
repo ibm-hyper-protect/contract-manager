@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"strings"
 
-	hpattestation "github.com/ibm-hyper-protect/contract-go/v2/attestation"
 	hpcertificate "github.com/ibm-hyper-protect/contract-go/v2/certificate"
 	hpcontract "github.com/ibm-hyper-protect/contract-go/v2/contract"
 
@@ -239,34 +238,6 @@ func (e *Engine) HpcrGetAttestationRecords(ctx context.Context, data, privateKey
 		return "", fmt.Errorf("failed to decrypt attestation records: %w", err)
 	}
 	return string(plaintext), nil
-}
-
-// HpcrVerifySignatureAttestationRecords verifies the HPCR attestation records signature
-// against the IBM attestation certificate using contract-go. The signature may be raw
-// bytes (se-signature.bin) or their base64 encoding.
-func (e *Engine) HpcrVerifySignatureAttestationRecords(ctx context.Context, attestationRecords, signature, attestationCert string) error {
-	_ = ctx
-	trimmedSignature := strings.TrimSpace(signature)
-	if trimmedSignature == "" {
-		return fmt.Errorf("attestation signature is empty")
-	}
-	if strings.TrimSpace(attestationCert) == "" {
-		return fmt.Errorf("attestation certificate is required")
-	}
-	if _, err := appcrypto.ParseCertificatePEM(attestationCert); err != nil {
-		return fmt.Errorf("invalid attestation certificate: %w", err)
-	}
-
-	// Raw signature bytes are used untrimmed; only a base64 form may carry surrounding whitespace.
-	rawSignature := signature
-	if decoded, err := base64.StdEncoding.DecodeString(trimmedSignature); err == nil {
-		rawSignature = string(decoded)
-	}
-
-	if err := hpattestation.HpcrVerifySignatureAttestationRecords(attestationRecords, rawSignature, attestationCert); err != nil {
-		return fmt.Errorf("attestation signature verification failed: %w", err)
-	}
-	return nil
 }
 
 func parseEncryptionPublicKey(certPEM string) (*rsa.PublicKey, error) {
