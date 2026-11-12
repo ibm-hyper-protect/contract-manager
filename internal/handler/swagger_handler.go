@@ -1171,6 +1171,23 @@ const openAPISpecJSON = `{
                               "type": "string"
                             }
                           },
+                          "releases": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "mod": {
+                                  "type": "string"
+                                },
+                                "fixpacks": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          },
                           "contract_supported": {
                             "type": "boolean",
                             "description": "Whether the current contract workflow supports this platform; currently CCRT only."

@@ -656,13 +656,25 @@ The pinned contract-go v3.5.0 library supplies four distinct identifiers: `ccrt`
 ```json
 {
   "versions": ["26.10.0", "26.9.1", "26.9.0", "26.7.2", "26.7.1", "1.2.2.3", "1.2.2.2", "1.2.2.1", "1.2.2", "1.2.1", "1.2.0", "1.0.30", "1.0.29", "1.0.28"],
-  "platforms": [
+ "platforms": [
+    {
+      "id": "ccco",
+      "versions": ["1.2.2.3", "1.2.2.2", "1.2.2.1", "1.2.2", "1.2.1", "1.2.0"],
+      "releases": [
+        { "mod": "1.2.2", "fixpacks": ["1.2.2.3", "1.2.2.2", "1.2.2.1"] },
+        { "mod": "1.2.1", "fixpacks": [] },
+        { "mod": "1.2.0", "fixpacks": [] }
+      ],
+      "contract_supported": false
+    },
     { "id": "ccrt", "versions": ["26.10.0", "26.9.1", "26.7.2"], "contract_supported": true }
   ]
 }
 ```
 
 `contract_supported` describes this application's contract workflow, currently CCRT only. A library certificate catalog entry does not enable another platform's schema or export format. Current upstream v3 documentation treats HPVS as a CCRT alias; do not apply those semantics to this pinned v3 catalog.
+
+For `ccco`, `releases` groups each mod release (`x.x.x`) with its fixpacks (`x.x.x.x`). Only mod releases have their own certificate; a fixpack uses the certificate of its parent mod. `versions` still lists all of them flat. Other platforms have no `releases` field.
 
 The catalog includes the library's historical versions. A lookup rejects a certificate that is expired, not yet valid or unsuitable for encryption; users must select a usable certificate matching their actual installed runtime. This is a library snapshot, not a live IBM release feed.
 
