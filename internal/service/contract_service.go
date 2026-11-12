@@ -334,10 +334,16 @@ func (s *ContractService) FinalizeContract(ctx context.Context, in FinalizeContr
 
 	privateKeyPEM, err := s.keyProvider.GetPrivateKey(ctx, signingKey.ID)
 	if err != nil {
-		return nil, model.ErrInvalidRequest("signing private key is unavailable for contract signing")
+		if signingKey.Mode == model.BuildKeyModeUploadPublic {
+			return nil, model.ErrInvalidRequest("The signing private key is unavailable for an uploaded public key.")
+		}
+		return nil, fmt.Errorf("failed to load signing private key: %w", err)
 	}
 	defer zeroizeBytes(privateKeyPEM)
 
+	if err := validateBuildKeyPassphrase(privateKeyPEM, in.SigningKeyPassphrase, model.BuildKeyTypeSigning); err != nil {
+		return nil, err
+	}
 	privateKey := string(privateKeyPEM)
 	defer func() { privateKey = "" }()
 

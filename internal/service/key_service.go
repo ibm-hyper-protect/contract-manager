@@ -93,6 +93,9 @@ func (s *KeyService) RegisterSigningKey(
 	if err := s.ensureBuildAndAuditorAssignment(ctx, buildID, actorID); err != nil {
 		return nil, err
 	}
+	if err := keymgmt.ValidateGenerationPassphrase(mode, passphrase); err != nil {
+		return nil, err
+	}
 
 	providerRecord, err := s.keyProvider.CreateSigningKey(ctx, buildID, actorID, mode, publicKey, passphrase)
 	if err != nil {
@@ -144,6 +147,9 @@ func (s *KeyService) RegisterAttestationKey(
 	requestSignatureHash *string,
 ) (*KeyRegistrationResult, *keymgmt.OneTimePrivateExport, error) {
 	if err := s.ensureBuildAndAuditorAssignment(ctx, buildID, actorID); err != nil {
+		return nil, nil, err
+	}
+	if err := keymgmt.ValidateGenerationPassphrase(mode, passphrase); err != nil {
 		return nil, nil, err
 	}
 

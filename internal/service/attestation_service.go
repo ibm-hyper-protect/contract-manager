@@ -233,7 +233,10 @@ func (s *AttestationService) VerifyEvidence(ctx context.Context, in VerifyAttest
 		details["reason"] = "attestation private key is unavailable (requires generated key with passphrase)"
 	} else {
 		defer zeroizeBytes(privateKeyPEM)
-		recordsText, decryptErr := s.engine.HpcrGetAttestationRecords(ctx, string(evidence.RecordsContent), string(privateKeyPEM), strings.TrimSpace(in.AttestationKeyPassphrase))
+		if err := validateBuildKeyPassphrase(privateKeyPEM, in.AttestationKeyPassphrase, model.BuildKeyTypeAttestation); err != nil {
+			return nil, err
+		}
+		recordsText, decryptErr := s.engine.HpcrGetAttestationRecords(ctx, string(evidence.RecordsContent), string(privateKeyPEM), in.AttestationKeyPassphrase)
 		if decryptErr != nil {
 			verdict = model.AttestationVerdictRejected
 			details["reason"] = decryptErr.Error()
