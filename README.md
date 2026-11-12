@@ -268,4 +268,9 @@ Docker will repopulate it on next start.
 
 Workload and environment inputs are validated against the embedded CCRT schema before encryption, separately or as a complete plaintext contract. Builds use one runtime encryption certificate for workload, environment and attestation. See [contract input validation and encryption](docs/contract-input-validation.md) for accepted formats, verification and compatibility limits.
 
+### Runtime certificate selection
+
+Authenticated clients can discover platform-specific versions using `GET /v2/encryption-certificates/versions` and fetch an exact embedded PEM using `GET /v2/encryption-certificates/certificate?platform=ccrt&version=26.7.2`. The legacy flat versions field remains compatible. Catalog data comes from pinned contract-go v2.37.0; only CCRT is supported by the current contract workflow. See [certificate API and rollout details](docs/api-reference.md#get-v2encryption-certificatesversions). Deploy this additive API before the companion desktop selector; its custom certificate upload remains available.
+
+
 Deploy this backend before releasing the paired UI validation change: the UI requires `POST /v2/contract-validate`. Existing unpinned builds cannot retrospectively verify the encryption recipient of older sections. No database migration is added by this change.

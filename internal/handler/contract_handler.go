@@ -62,7 +62,7 @@ func (h *ContractHandler) GetContractTemplate(w http.ResponseWriter, r *http.Req
 
 // ListAvailableEncCertVersions handles GET /encryption-certificates/versions
 func (h *ContractHandler) ListAvailableEncCertVersions(w http.ResponseWriter, r *http.Request) {
-	versions, err := h.contractService.ListAvailableEncCertVersions(r.Context())
+	catalog, err := h.contractService.ListEncryptionCertificates(r.Context())
 	if err != nil {
 		if appErr, ok := err.(*model.AppError); ok {
 			writeError(w, appErr)
@@ -72,9 +72,8 @@ func (h *ContractHandler) ListAvailableEncCertVersions(w http.ResponseWriter, r 
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"versions": versions,
-	})
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, catalog)
 }
 
 // SubmitWorkload handles POST /builds/{id}/v2/sections/workload

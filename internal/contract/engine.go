@@ -18,5 +18,6 @@ type Engine interface {
 	HpcrContractTemplate(ctx context.Context, templateType string) (string, error)
 	HpcrGetAttestationRecords(ctx context.Context, data, privateKey, password string) (string, error)
 	HpcrVerifySignatureAttestationRecords(ctx context.Context, attestationRecords, signature, attestationCert string) error
-	ListAvailableEncCertVersions(ctx context.Context) ([]string, error)
+	ListEncryptionCertificates(ctx context.Context) (*CertificateCatalog, error)
+	GetEncryptionCertificate(ctx context.Context, platform, version string) (*RuntimeCertificate, error)
 }

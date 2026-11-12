@@ -95,14 +95,6 @@ func (s *ContractService) GetContractTemplate(ctx context.Context, templateType 
 	return normalized, template, nil
 }
 
-func (s *ContractService) ListAvailableEncCertVersions(ctx context.Context) ([]string, error) {
-	versions, err := s.engine.ListAvailableEncCertVersions(ctx)
-	if err != nil {
-		return nil, model.ErrInternal("failed to retrieve available encryption certificate versions")
-	}
-	return versions, nil
-}
-
 func (s *ContractService) SubmitWorkloadSection(ctx context.Context, in SubmitSectionV2Input) (*repository.BuildSection, error) {
 	if err := s.assignmentService.ValidateAssignmentForSubmission(ctx, in.BuildID, in.ActorID, model.RoleSolutionProvider.String()); err != nil {
 		return nil, err
