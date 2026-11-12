@@ -111,6 +111,34 @@ No auth. Strict rate limit (1 req/12s, burst 3). **Signature headers not require
 
 ---
 
+### `GET /auth/oidc/login`
+
+No auth. Returns `404` when SSO is not configured.
+
+**Query:** `state` (optional) — passed unchanged to the provider URL. The backend does not verify it; the client must.
+
+**Response `200`**
+```json
+{ "url": "https://<oauth-server>/authorize?client_id=...&state=..." }
+```
+
+---
+
+### `POST /auth/oidc/callback`
+
+No auth. Strict rate limit (1 req/12s, burst 3). **Signature headers not required.** The user must already exist and be active; no account is created.
+
+**Request**
+```json
+{ "code": "authorization-code" }
+```
+
+**Response `200`** Same as `POST /auth/login`.
+
+**Errors:** `400` missing `code` · `401 INVALID_CREDENTIALS` (any failure, reason not disclosed) · `404` SSO not configured
+
+---
+
 ### `POST /auth/logout`
 
 Auth required. **Signature headers not required (exempt).**
@@ -836,6 +864,8 @@ Revokes only expired, unrevoked public keys for the specified user and records t
 | GET | `/openapi.json` | ✗ | — | — |
 | GET | `/swagger` | ✗ | — | — |
 | POST | `/auth/login` | ✗ | — | ✗ |
+| GET | `/auth/oidc/login` | ✗ | — | — |
+| POST | `/auth/oidc/callback` | ✗ | — | ✗ |
 | POST | `/auth/logout` | ✓ | any | ✗ |
 | GET | `/roles` | ✓ | any | — |
 | GET | `/users` | ✓ | ADMIN/AUDITOR | — |

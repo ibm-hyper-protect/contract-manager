@@ -38,6 +38,12 @@ type Config struct {
 
 	// Request lifecycle
 	RequestTimeout time.Duration
+
+	// SSO (IBM w3id via App ID OIDC); SSO is disabled when any of these is empty.
+	AppIDClientID       string
+	AppIDClientSecret   string
+	AppIDOAuthServerURL string
+	AppIDRedirectURI    string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -55,9 +61,13 @@ func Load() (*Config, error) {
 			"CORS_ALLOWED_ORIGINS",
 			"http://localhost:5173,http://127.0.0.1:5173,null",
 		)),
-		CORSAllowAll:      getEnvBool("CORS_ALLOW_ALL", false),
-		TrustProxyHeaders: getEnvBool("TRUST_PROXY_HEADERS", false),
-		RequestTimeout:    getEnvDuration("REQUEST_TIMEOUT", 30*time.Second),
+		CORSAllowAll:        getEnvBool("CORS_ALLOW_ALL", false),
+		TrustProxyHeaders:   getEnvBool("TRUST_PROXY_HEADERS", false),
+		RequestTimeout:      getEnvDuration("REQUEST_TIMEOUT", 30*time.Second),
+		AppIDClientID:       os.Getenv("APPID_CLIENT_ID"),
+		AppIDClientSecret:   os.Getenv("APPID_CLIENT_SECRET"),
+		AppIDOAuthServerURL: os.Getenv("APPID_OAUTH_SERVER_URL"),
+		AppIDRedirectURI:    os.Getenv("APPID_REDIRECT_URI"),
 	}
 
 	if cfg.DatabaseURL == "" {

@@ -605,6 +605,72 @@ const openAPISpecJSON = `{
         }
       }
     },
+    "/auth/oidc/login": {
+      "get": {
+        "summary": "Get SSO authorization URL",
+        "description": "Returns the IBM w3id authorization URL. The optional state value is passed through unchanged; the client must verify it when the provider redirects back.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "url": { "type": "string" } }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SSO is not configured",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oidc/callback": {
+      "post": {
+        "summary": "SSO login",
+        "description": "Exchanges the authorization code for the user's email and issues a token. The user must already exist and be active.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code"],
+                "properties": { "code": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful" },
+          "400": { "description": "Missing code or invalid request body" },
+          "401": {
+            "description": "SSO login failed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": { "description": "SSO is not configured" }
+        }
+      }
+    },
     "/auth/logout": {
       "post": {
         "summary": "Logout",

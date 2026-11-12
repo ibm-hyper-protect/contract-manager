@@ -57,24 +57,8 @@ type UserInfo struct {
 	PasswordChangedAt    *time.Time `json:"password_changed_at"`
 }
 
-// Login validates credentials and returns a bearer token.
-func (s *AuthService) Login(ctx context.Context, email, password string) (*LoginResult, error) {
-	// Look up user by email
-	user, err := s.queries.GetUserByEmail(ctx, email)
-	if err != nil {
-		return nil, fmt.Errorf("invalid credentials")
-	}
-
-	// Check if user is active
-	if !user.IsActive {
-		return nil, fmt.Errorf("user account is deactivated")
-	}
-
-	// Verify password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return nil, fmt.Errorf("invalid credentials")
-	}
-
+// issueLoginToken creates an API token and the login response for an already authenticated user.
+func (s *AuthService) issueLoginToken(ctx context.Context, user repository.GetUserByEmailRow) (*LoginResult, error) {
 	// Load roles
 	roles, err := s.queries.GetRolesByUserID(ctx, user.ID)
 	if err != nil {
@@ -153,6 +137,27 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*Login
 	}, nil
 }
 
+// Login validates credentials and returns a bearer token.
+func (s *AuthService) Login(ctx context.Context, email, password string) (*LoginResult, error) {
+	// Look up user by email
+	user, err := s.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		return nil, fmt.Errorf("user account is deactivated")
+	}
+
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	return s.issueLoginToken(ctx, user)
+}
+
 // Logout revokes the token used for the current session.
 func (s *AuthService) Logout(ctx context.Context, tokenHash string) error {
 	// Look up the token to get its ID and user_id
@@ -191,4 +196,16 @@ func GenerateToken() (raw string, hashed string, err error) {
 func HashToken(rawToken string) string {
 	hash := sha256.Sum256([]byte(rawToken))
 	return hex.EncodeToString(hash[:])
+}
+
+// LoginWithOIDC returns a bearer token for an already registered, active user identified by email.
+func (s *AuthService) LoginWithOIDC(ctx context.Context, email string) (*LoginResult, error) {
+	user, err := s.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("user not found or not registered")
+	}
+	if !user.IsActive {
+		return nil, fmt.Errorf("user account is deactivated")
+	}
+	return s.issueLoginToken(ctx, user)
 }

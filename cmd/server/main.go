@@ -89,12 +89,13 @@ func main() {
 	keyService := service.NewKeyService(queries, pool, buildService, assignmentService, auditService, keyProvider, engine)
 	contractService := service.NewContractService(queries, pool, buildService, assignmentService, keyService, keyProvider, engine)
 	attestationService := service.NewAttestationService(queries, pool, assignmentService, auditService, keyProvider, engine)
+	oidcService := service.NewOIDCService(cfg.AppIDClientID, cfg.AppIDClientSecret, cfg.AppIDOAuthServerURL, cfg.AppIDRedirectURI)
 
 	middleware.SetSystemLogHook(systemLogService.LogEvent)
 	middleware.SetTrustProxyHeaders(cfg.TrustProxyHeaders)
 
 	// Handlers
-	authHandler := handler.NewAuthHandler(authService, systemLogService)
+	authHandler := handler.NewAuthHandler(authService, oidcService, systemLogService)
 	userKeyHandler := handler.NewUserKeyHandler(userKeyService, systemLogService)
 	userHandler := handler.NewUserHandler(userService, userKeyService, systemLogService)
 	roleHandler := handler.NewRoleHandler(roleService)
@@ -138,6 +139,8 @@ func main() {
 	r.Get("/swagger", swaggerHandler.UI)
 	r.Get("/swagger/", swaggerHandler.UI)
 	r.With(middleware.AuthRateLimit()).Post("/auth/login", authHandler.Login)
+	r.Get("/auth/oidc/login", authHandler.OIDCLogin)
+	r.With(middleware.AuthRateLimit()).Post("/auth/oidc/callback", authHandler.OIDCCallback)
 
 	// Authenticated
 	r.Group(func(r chi.Router) {

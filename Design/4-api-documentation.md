@@ -71,6 +71,8 @@ Authorization: Bearer <token>
 - `GET /swagger`
 - `GET /swagger/`
 - `POST /auth/login`
+- `GET /auth/oidc/login` (SSO, returns 404 when SSO is not configured)
+- `POST /auth/oidc/callback` (SSO, returns 404 when SSO is not configured)
 
 All other routes require authentication.
 
@@ -476,6 +478,48 @@ All paths below are relative to backend root.
   }
 }
 ```
+
+#### GET /auth/oidc/login
+
+- Auth: none
+- Query: `state` (optional) is passed unchanged to the IBM w3id authorization URL. The backend does not store or verify it; the client must generate it and verify it when the provider redirects back.
+- Response `200`:
+
+```json
+{
+  "url": "https://<oauth-server>/authorize?client_id=...&response_type=code&redirect_uri=...&scope=openid+email+profile&state=..."
+}
+```
+
+- Error `404` when SSO is not configured (`APPID_*` variables unset).
+
+#### POST /auth/oidc/callback
+
+- Auth: none
+- Rate limits: global + auth-specific
+- The user must already exist (matched by email) and be active. No account is created.
+- Request:
+
+```json
+{
+  "code": "<authorization-code>"
+}
+```
+
+- Response `200`: same body as `POST /auth/login`.
+- Error `400` when `code` is missing.
+- Error `401` for every failure (code exchange failed, unknown email, deactivated user), without revealing which:
+
+```json
+{
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "SSO login failed."
+  }
+}
+```
+
+- Error `404` when SSO is not configured.
 
 #### POST /auth/logout
 
