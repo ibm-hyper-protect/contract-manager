@@ -26,7 +26,7 @@ import (
 	"slices"
 	"testing"
 
-	hpencryption "github.com/ibm-hyper-protect/contract-go/v2/encryption"
+	hpencryption "github.com/ibm-hyper-protect/contract-go/v3/encryption"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract"
 )

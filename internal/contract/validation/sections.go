@@ -23,7 +23,7 @@ import (
 	"strings"
 	"sync"
 
-	contractschema "github.com/ibm-hyper-protect/contract-go/v2/schema/contract"
+	contractschema "github.com/ibm-hyper-protect/contract-go/v3/schema/contract"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"gopkg.in/yaml.v3"
 )

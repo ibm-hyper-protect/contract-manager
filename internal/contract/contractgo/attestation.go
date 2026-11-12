@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	hpattestation "github.com/ibm-hyper-protect/contract-go/v2/attestation"
+	hpattestation "github.com/ibm-hyper-protect/contract-go/v3/attestation"
 
 	appcrypto "github.com/ibm-hyper-protect/contract-manager/internal/crypto"
 )

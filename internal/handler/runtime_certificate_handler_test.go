@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	hpencryption "github.com/ibm-hyper-protect/contract-go/v2/encryption"
+	hpencryption "github.com/ibm-hyper-protect/contract-go/v3/encryption"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract"
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract/contractgo"

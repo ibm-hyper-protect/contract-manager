@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"sort"
 
-	hpcertificate "github.com/ibm-hyper-protect/contract-go/v2/certificate"
-	hpencryption "github.com/ibm-hyper-protect/contract-go/v2/encryption"
+	hpcertificate "github.com/ibm-hyper-protect/contract-go/v3/certificate"
+	hpencryption "github.com/ibm-hyper-protect/contract-go/v3/encryption"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract"
 )
@@ -40,13 +40,17 @@ func (e *Engine) ListEncryptionCertificates(ctx context.Context) (*contract.Cert
 	if err != nil {
 		return nil, fmt.Errorf("list runtime certificates: %w", err)
 	}
-	var platforms map[string][]string
+	var platforms map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(raw), &platforms); err != nil {
 		return nil, fmt.Errorf("decode runtime certificate catalog: %w", err)
 	}
 	result := &contract.CertificateCatalog{Versions: []string{}, Platforms: []contract.CertificatePlatform{}}
 	unique := make(map[string]bool)
-	for id, versions := range platforms {
+	for id, rawVersions := range platforms {
+		versions, err := parseVersions(rawVersions)
+		if err != nil {
+			return nil, fmt.Errorf("decode %s versions: %w", id, err)
+		}
 		sortVersions(versions)
 		result.Platforms = append(result.Platforms, contract.CertificatePlatform{ID: id, Versions: versions, ContractSupported: id == hpencryption.OsTypeCcrt})
 		for _, version := range versions {
@@ -59,6 +63,26 @@ func (e *Engine) ListEncryptionCertificates(ctx context.Context) (*contract.Cert
 	}
 	sortVersions(result.Versions)
 	return result, nil
+}
+func parseVersions(raw json.RawMessage) ([]string, error) {
+	var plain []string
+	if json.Unmarshal(raw, &plain) == nil {
+		return plain, nil
+	}
+	var releases []struct {
+		Mod      string   `json:"mod"`
+		Fixpacks []string `json:"fixpacks"`
+	}
+	if err := json.Unmarshal(raw, &releases); err != nil {
+		return nil, err
+	}
+	var versions []string
+	for _, r := range releases {
+		versions = append(versions, r.Mod)
+		versions = append(versions, r.Fixpacks...)
+	}
+	return versions, nil
+
 }
 
 func sortVersions(versions []string) {

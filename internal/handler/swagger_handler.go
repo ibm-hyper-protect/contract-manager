@@ -1128,7 +1128,7 @@ const openAPISpecJSON = `{
     "/v2/encryption-certificates/versions": {
       "get": {
         "summary": "List runtime certificate platforms and versions",
-        "description": "Uses the pinned contract-go v2 catalog. Preserves the legacy flat versions list and adds deterministic per-platform versions. Catalog presence does not imply support for that contract workflow. The unprefixed alias is also available.",
+        "description": "Uses the pinned contract-go v3 catalog. Preserves the legacy flat versions list and adds deterministic per-platform versions. Catalog presence does not imply support for that contract workflow. The unprefixed alias is also available.",
         "security": [
           {
             "bearerAuth": []

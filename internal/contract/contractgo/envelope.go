@@ -29,7 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ibm-hyper-protect/contract-go/v2/common/general"
+	"github.com/ibm-hyper-protect/contract-go/v3/common/general"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract/validation"
 )

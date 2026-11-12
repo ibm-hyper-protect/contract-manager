@@ -21,7 +21,7 @@ This file provides guidance to agents when working with code in this repository.
 - The strict state machine is defined in `internal/model/build.go:ValidTransitions`. The sequence is: CREATED → SIGNING_KEY_REGISTERED → WORKLOAD_SUBMITTED → ENVIRONMENT_STAGED → ATTESTATION_KEY_REGISTERED → FINALIZED → CONTRACT_DOWNLOADED.
 
 ### Contract engine
-- `internal/contract/engine.go` defines the `Engine` interface; the only implementation is `internal/contract/contractgo/engine.go` which wraps `github.com/ibm-hyper-protect/contract-go/v2`.
+- `internal/contract/engine.go` defines the `Engine` interface; the only implementation is `internal/contract/contractgo/engine.go` which wraps `github.com/ibm-hyper-protect/contract-go/v3`.
 
 ### No tests yet
 - There are no `*_test.go` files in the repository as of initial commit.

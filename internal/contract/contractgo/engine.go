@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"strings"
 
-	hpcontract "github.com/ibm-hyper-protect/contract-go/v2/contract"
+	hpcontract "github.com/ibm-hyper-protect/contract-go/v3/contract"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract"
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract/validation"
@@ -57,7 +57,7 @@ env:
   EXAMPLE: "replace-me"
 `
 
-// EncryptString encrypts plaintext using the official contract-go v2 format:
+// EncryptString encrypts plaintext using the official contract-go v3 format:
 // "contract-basic.<encrypted-password>.<encrypted-data>" for CCRT.
 func (e *Engine) EncryptString(ctx context.Context, plaintext, certPEM string) (string, error) {
 	if strings.TrimSpace(plaintext) == "" {
@@ -100,7 +100,7 @@ func (e *Engine) AssembleContract(ctx context.Context, in contract.AssembleInput
 }
 
 // HpcrContractSign provides a runtime-compatible signing hook.
-// It delegates to contract-go/v2 and returns:
+// It delegates to contract-go/v3 and returns:
 // 1) final signed contract YAML
 // 2) SHA-256 of input contract YAML
 // 3) SHA-256 of output signed contract YAML
@@ -108,7 +108,7 @@ func (e *Engine) HpcrContractSign(ctx context.Context, contractData, privateKeyP
 	_ = ctx
 	signedContract, inputChecksum, outputChecksum, err := hpcontract.HpcrContractSign(contractData, privateKeyPEM, password)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to sign contract with contract-go v2: %w", err)
+		return "", "", "", fmt.Errorf("failed to sign contract with contract-go v3: %w", err)
 	}
 
 	return signedContract, inputChecksum, outputChecksum, nil
