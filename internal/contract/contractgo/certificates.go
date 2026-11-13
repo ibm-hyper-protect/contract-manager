@@ -63,7 +63,7 @@ func (e *Engine) ListEncryptionCertificates(ctx context.Context) (*contract.Cert
 			return nil, fmt.Errorf("decode %s versions: %w", id, err)
 		}
 		sortVersions(versions)
-		result.Platforms = append(result.Platforms, contract.CertificatePlatform{ID: id, Versions: versions, Releases: releases, ContractSupported: id == hpencryption.OsTypeCcrt})
+		result.Platforms = append(result.Platforms, contract.CertificatePlatform{ID: id, Versions: versions, Releases: releases, ContractSupported: supportsContract(id)})
 		for _, version := range versions {
 			unique[version] = true
 		}
@@ -125,6 +125,24 @@ func (e *Engine) GetEncryptionCertificate(ctx context.Context, platform, version
 		Platform: platform, Version: version, CertificatePEM: text,
 		FingerprintSHA256: hex.EncodeToString(digest[:]),
 		NotBefore:         cert.NotBefore, NotAfter: cert.NotAfter,
-		ContractSupported: platform == hpencryption.OsTypeCcrt,
+		ContractSupported: supportsContract(platform),
 	}, nil
+}
+
+// contract-go v3 uses the CCRT schema for both CCRT and legacy HPVS.
+// CCRV/CCCO have different schemas and remain unavailable in this workflow.
+func supportsContract(platform string) bool {
+	return platform == hpencryption.OsTypeCcrt || platform == hpencryption.OsTypeHpvs
+}
+
+// Identify HPVS by the certificate DER, including custom uploads of the exact
+// same certificate. Display labels and PEM whitespace cannot change the format.
+func encryptionPrefix(certificate *x509.Certificate) string {
+	for _, text := range hpencryption.CertificateMap[hpencryption.OsTypeHpvs] {
+		block, _ := pem.Decode([]byte(text))
+		if block != nil && certificate.Equal(&x509.Certificate{Raw: block.Bytes}) {
+			return "hyper-protect-basic."
+		}
+	}
+	return "contract-basic."
 }

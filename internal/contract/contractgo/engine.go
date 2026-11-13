@@ -58,7 +58,8 @@ env:
 `
 
 // EncryptString encrypts plaintext using the official contract-go v3 format:
-// "contract-basic.<encrypted-password>.<encrypted-data>" for CCRT.
+// "contract-basic.<encrypted-password>.<encrypted-data>" for CCRT,
+// or "hyper-protect-basic.<encrypted-password>.<encrypted-data>" for known HPVS certificates.
 func (e *Engine) EncryptString(ctx context.Context, plaintext, certPEM string) (string, error) {
 	if strings.TrimSpace(plaintext) == "" {
 		return "", fmt.Errorf("plaintext section is required")
