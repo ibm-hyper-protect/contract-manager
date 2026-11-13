@@ -667,12 +667,13 @@ The pinned contract-go v3.5.0 library supplies four distinct identifiers: `ccrt`
       ],
       "contract_supported": false
     },
-    { "id": "ccrt", "versions": ["26.10.0", "26.9.1", "26.7.2"], "contract_supported": true }
+    { "id": "ccrt", "versions": ["26.10.0", "26.9.1", "26.7.2"], "contract_supported": true },
+    { "id": "hpvs", "versions": ["1.0.30", "1.0.29"], "contract_supported": true }
   ]
 }
 ```
 
-`contract_supported` describes this application's contract workflow, currently CCRT only. A library certificate catalog entry does not enable another platform's schema or export format. Current upstream v3 documentation treats HPVS as a CCRT alias; do not apply those semantics to this pinned v3 catalog.
+`contract_supported` describes this application's contract workflow, currently CCRT and HPVS. The pinned v3.5.0 library uses the same schema for these platforms. HPVS certificates select `hyper-protect-basic` envelopes; CCRT certificates use `contract-basic`. The backend determines this from the exact embedded HPVS certificate DER, also when that certificate is uploaded as custom PEM. Unrecognized custom certificates retain the CCRT format. CCRV and CCCO remain unavailable because their contract schemas differ.
 
 For `ccco`, `releases` groups each mod release (`x.x.x`) with its fixpacks (`x.x.x.x`). Only mod releases have their own certificate; a fixpack uses the certificate of its parent mod. `versions` still lists all of them flat. Other platforms have no `releases` field.
 
@@ -987,7 +988,7 @@ Revokes only expired, unrevoked public keys for the specified user and records t
 {"section":"workload","plaintext":"type: workload\nplay:\n  resources: []\n"}
 ```
 
-`section` is `workload`, `env`, or an empty string for both. Use raw section YAML for individual validation. Complete plaintext contracts must contain both `workload` and `env`, as mappings or YAML block scalars; both are validated even when requesting only one. The sample empty resources list is intentionally incomplete and is rejected. Successful responses contain `valid: true`, `platform: "ccrt"` and normalized `plaintext`. The helper does not store input. CCRT is the platform currently configured by this workflow; this endpoint does not claim validation for CCRV or CCCO.
+`section` is `workload`, `env`, or an empty string for both. Use raw section YAML for individual validation. Complete plaintext contracts must contain both `workload` and `env`, as mappings or YAML block scalars; both are validated even when requesting only one. The sample empty resources list is intentionally incomplete and is rejected. Successful responses contain `valid: true`, `platform: "ccrt"` and normalized `plaintext`. The helper does not store input. The configured schema covers CCRT and HPVS (as in contract-go v3.5.0); this endpoint does not claim validation for CCRV or CCCO.
 
 Both submission endpoints repeat schema validation before encryption. Complete inputs also check shared volume declarations and seed availability. Separate submissions cannot compare plaintext against a previously encrypted counterpart without the runtime's private key; they are checked independently. Workload, environment and attestation encryption use the same certificate pinned to the build. Existing builds without a stored certificate pin the certificate on their next submission; the recipient of previously encrypted sections cannot be inferred retrospectively.
 
