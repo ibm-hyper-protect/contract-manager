@@ -65,7 +65,7 @@ func (h *AboutHandler) GetAbout(w http.ResponseWriter, r *http.Request) {
 func getContractGoVersion() string {
 	// contract-go is a Go library dependency, not a CLI tool
 	// Return the version specified in go.mod
-	return "v2.19.0"
+	return "v3.5.0"
 }
 
 // getOpenSSLVersion attempts to get the OpenSSL version
