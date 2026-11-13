@@ -147,7 +147,7 @@ docker compose -f compose/docker-compose.yaml --project-directory compose \
 ├── cmd/server/             # Main entrypoint — wires services, builds router
 ├── internal/
 │   ├── config/             # Environment variable config
-│   ├── contract/           # Engine interface + contract-go v2 implementation
+│   ├── contract/           # Engine interface + contract-go v3 implementation
 │   ├── handler/            # HTTP handlers (writeJSON / writeError)
 │   ├── keymgmt/            # KeyProvider interface; db implementation
 │   ├── middleware/         # Auth, RBAC, signature, rate-limit, setup guard
@@ -270,7 +270,7 @@ Workload and environment inputs are validated against the embedded CCRT schema b
 
 ### Runtime certificate selection
 
-Authenticated clients can discover platform-specific versions using `GET /v2/encryption-certificates/versions` and fetch an exact embedded PEM using `GET /v2/encryption-certificates/certificate?platform=ccrt&version=26.7.2`. The legacy flat versions field remains compatible. Catalog data comes from pinned contract-go v2.37.0; only CCRT is supported by the current contract workflow. See [certificate API and rollout details](docs/api-reference.md#get-v2encryption-certificatesversions). Deploy this additive API before the companion desktop selector; its custom certificate upload remains available.
+Authenticated clients can discover platform-specific versions using `GET /v2/encryption-certificates/versions` and fetch an exact embedded PEM using `GET /v2/encryption-certificates/certificate?platform=ccrt&version=26.7.2`. The legacy flat versions field remains compatible. Catalog data comes from pinned contract-go v3.5.0; only CCRT is supported by the current contract workflow. See [certificate API and rollout details](docs/api-reference.md#get-v2encryption-certificatesversions). Deploy this additive API before the companion desktop selector; its custom certificate upload remains available.
 
 
 Deploy this backend before releasing the paired UI validation change: the UI requires `POST /v2/contract-validate`. Existing unpinned builds cannot retrospectively verify the encryption recipient of older sections. No database migration is added by this change.

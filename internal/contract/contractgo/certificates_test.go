@@ -26,7 +26,7 @@ import (
 	"slices"
 	"testing"
 
-	hpencryption "github.com/ibm-hyper-protect/contract-go/v2/encryption"
+	hpencryption "github.com/ibm-hyper-protect/contract-go/v3/encryption"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract"
 )
@@ -116,5 +116,32 @@ func TestExactEmbeddedCertificateAndPublicMetadata(t *testing.T) {
 	}
 	if _, err := e.GetEncryptionCertificate(ctx, "ccrt", "26.7.2"); !errors.Is(err, context.Canceled) {
 		t.Fatal("ignored canceled certificate request")
+	}
+}
+func TestCccoReleasesMapFixpacksToModCertificate(t *testing.T) {
+	catalog, err := New().ListEncryptionCertificates(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, platform := range catalog.Platforms {
+		if platform.ID != "ccco" {
+			if platform.Releases != nil {
+				t.Fatalf("%s must not have releases", platform.ID)
+			}
+			continue
+		}
+		if len(platform.Releases) == 0 {
+			t.Fatal("ccco has no releases")
+		}
+		for _, release := range platform.Releases {
+			if release.Fixpacks == nil {
+				t.Fatalf("fixpacks of %s must not be nil", release.Mod)
+			}
+			for _, fixpack := range release.Fixpacks {
+				if hpencryption.CertificateMap["ccco"][fixpack] != hpencryption.CertificateMap["ccco"][release.Mod] {
+					t.Fatalf("fixpack %s does not use the certificate of mod %s", fixpack, release.Mod)
+				}
+			}
+		}
 	}
 }

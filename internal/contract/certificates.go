@@ -24,10 +24,15 @@ import (
 var ErrCertificateNotFound = errors.New("runtime certificate not found")
 
 // CertificatePlatform preserves the library's platform-to-version association.
+type CertificateRelease struct {
+	Mod      string   `json:"mod"`
+	Fixpacks []string `json:"fixpacks"`
+}
 type CertificatePlatform struct {
-	ID                string   `json:"id"`
-	Versions          []string `json:"versions"`
-	ContractSupported bool     `json:"contract_supported"`
+	ID                string               `json:"id"`
+	Versions          []string             `json:"versions,omitempty"`
+	Releases          []CertificateRelease `json:"releases,omitempty"`
+	ContractSupported bool                 `json:"contract_supported"`
 }
 
 // CertificateCatalog adds platform information without removing the legacy flat list.

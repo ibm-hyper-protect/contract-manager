@@ -25,11 +25,22 @@ import (
 	"fmt"
 	"sort"
 
-	hpcertificate "github.com/ibm-hyper-protect/contract-go/v2/certificate"
-	hpencryption "github.com/ibm-hyper-protect/contract-go/v2/encryption"
+	hpcertificate "github.com/ibm-hyper-protect/contract-go/v3/certificate"
+	hpencryption "github.com/ibm-hyper-protect/contract-go/v3/encryption"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/contract"
 )
+
+type CertificateRelease struct {
+	Mod      string   `json:"mod"`
+	Fixpacks []string `json:"fixpacks"`
+}
+type CertificatePlatform struct {
+	ID                string               `json:"id"`
+	Versions          []string             `json:"versions,omitempty"`
+	Releases          []CertificateRelease `json:"releases,omitempty"`
+	ContractSupported bool                 `json:"contract_supported"`
+}
 
 // ListEncryptionCertificates returns deterministic platform/version data from the pinned library.
 func (e *Engine) ListEncryptionCertificates(ctx context.Context) (*contract.CertificateCatalog, error) {
@@ -40,15 +51,19 @@ func (e *Engine) ListEncryptionCertificates(ctx context.Context) (*contract.Cert
 	if err != nil {
 		return nil, fmt.Errorf("list runtime certificates: %w", err)
 	}
-	var platforms map[string][]string
+	var platforms map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(raw), &platforms); err != nil {
 		return nil, fmt.Errorf("decode runtime certificate catalog: %w", err)
 	}
 	result := &contract.CertificateCatalog{Versions: []string{}, Platforms: []contract.CertificatePlatform{}}
 	unique := make(map[string]bool)
-	for id, versions := range platforms {
+	for id, rawVersions := range platforms {
+		versions, releases, err := parseVersions(rawVersions)
+		if err != nil {
+			return nil, fmt.Errorf("decode %s versions: %w", id, err)
+		}
 		sortVersions(versions)
-		result.Platforms = append(result.Platforms, contract.CertificatePlatform{ID: id, Versions: versions, ContractSupported: id == hpencryption.OsTypeCcrt})
+		result.Platforms = append(result.Platforms, contract.CertificatePlatform{ID: id, Versions: versions, Releases: releases, ContractSupported: id == hpencryption.OsTypeCcrt})
 		for _, version := range versions {
 			unique[version] = true
 		}
@@ -59,6 +74,29 @@ func (e *Engine) ListEncryptionCertificates(ctx context.Context) (*contract.Cert
 	}
 	sortVersions(result.Versions)
 	return result, nil
+}
+func parseVersions(raw json.RawMessage) ([]string, []contract.CertificateRelease, error) {
+	var plain []string
+	if json.Unmarshal(raw, &plain) == nil {
+		return plain, nil, nil
+	}
+	var releases []contract.CertificateRelease
+	if err := json.Unmarshal(raw, &releases); err != nil {
+		return nil, nil, err
+	}
+	var versions []string
+	for i := range releases {
+		if releases[i].Fixpacks == nil {
+			releases[i].Fixpacks = []string{}
+		}
+		sortVersions(releases[i].Fixpacks)
+		versions = append(versions, releases[i].Mod)
+		versions = append(versions, releases[i].Fixpacks...)
+	}
+	sort.Slice(releases, func(i, j int) bool {
+		return hpencryption.CompareVersions(releases[i].Mod, releases[j].Mod) > 0
+	})
+	return versions, releases, nil
 }
 
 func sortVersions(versions []string) {
