@@ -22,9 +22,11 @@ env:
 ```
 
 Keep the deployment's existing logging, registry authentication and volume blocks.
-The workload must explicitly pass the selected variables into the backend service;
-the image cannot itself read another contract section. A name-only Compose
-environment entry inherits that variable from the Compose process environment:
+The server reads its container's process environment; it does not parse the
+contract itself. With the tested CCRT 26.10.0 image, variables from `env.env` were
+available to Compose, but a service without an `environment` entry did not receive
+the test variable automatically. A name-only Compose entry successfully inherited
+it. Select only the variables each service needs, keeping their values in `env.env`:
 
 ```yaml
 environment:
@@ -36,6 +38,12 @@ environment:
   - APPID_OAUTH_SERVER_URL
   - APPID_REDIRECT_URI
 ```
+
+This forwarding behavior was verified in an isolated protected Z16 guest. It is
+not a claim about every runtime version or contract preprocessing path; another
+deployment may inject variables differently. A working deployment's existing
+configuration can remain in place if it already delivers the required process
+environment.
 
 ## Fallback behavior
 
