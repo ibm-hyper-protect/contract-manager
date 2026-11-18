@@ -41,7 +41,7 @@ func TestCertificateCatalogPreservesPlatformsAndLegacyVersions(t *testing.T) {
 	unique := map[string]bool{}
 	for _, platform := range catalog.Platforms {
 		ids = append(ids, platform.ID)
-		if platform.ContractSupported != (platform.ID == "ccrt") {
+		if platform.ContractSupported != (platform.ID == "ccrt" || platform.ID == "hpvs") {
 			t.Fatalf("misreported contract support: %+v", platform)
 		}
 		if len(platform.Versions) != len(hpencryption.CertificateMap[platform.ID]) {

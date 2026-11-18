@@ -70,8 +70,8 @@ func encryptEnvelope(ctx context.Context, plaintext, certPEM string) (string, er
 	if err != nil {
 		return "", fmt.Errorf("encrypt section: %w", err)
 	}
-	// CCRT uses contract-basic; legacy envelopes remain supported for decryption.
-	return "contract-basic." + base64.StdEncoding.EncodeToString(wrapped) + "." + base64.StdEncoding.EncodeToString(encrypted), nil
+	// HPVS needs its legacy prefix; the cryptography and payload are identical.
+	return encryptionPrefix(certificate) + base64.StdEncoding.EncodeToString(wrapped) + "." + base64.StdEncoding.EncodeToString(encrypted), nil
 }
 
 func decryptEnvelope(ctx context.Context, encrypted, privateKey, passphrase string) (string, error) {
