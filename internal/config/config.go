@@ -48,6 +48,9 @@ type Config struct {
 
 // Load reads configuration from environment variables with sensible defaults.
 func Load() (*Config, error) {
+	if err := validateEnvironment(); err != nil {
+		return nil, err
+	}
 	cfg := &Config{
 		ServerHost:     getEnv("SERVER_HOST", "0.0.0.0"),
 		ServerPort:     getEnvInt("SERVER_PORT", 8080),
@@ -68,10 +71,6 @@ func Load() (*Config, error) {
 		AppIDClientSecret:   os.Getenv("APPID_CLIENT_SECRET"),
 		AppIDOAuthServerURL: os.Getenv("APPID_OAUTH_SERVER_URL"),
 		AppIDRedirectURI:    os.Getenv("APPID_REDIRECT_URI"),
-	}
-
-	if cfg.DatabaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL environment variable is required")
 	}
 
 	return cfg, nil
