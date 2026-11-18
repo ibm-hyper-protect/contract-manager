@@ -17,9 +17,10 @@ RUN go mod download
 
 # Copy source and build server binary.
 COPY . .
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+ARG TARGETOS
+ARG TARGETARCH
+# BuildKit supplies these arguments; legacy native builders do not.
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-$(go env GOARCH)} \
     go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
 
 # ── Stage 2: Runtime ───────────────────────────────────────────────
@@ -39,6 +40,16 @@ COPY --from=builder /usr/local/bin/migrate /usr/local/bin/migrate
 
 # Embed migration SQL files.
 COPY migrations/ /migrations/
+
+# Source checkout permissions must not prevent the non-root migration service
+# from traversing the directory and reading SQL. Keep application files root-owned.
+RUN find /migrations -type d -exec chmod 0755 {} + \
+  && find /migrations -type f -name '*.sql' -exec chmod 0644 {} + \
+  && chmod 0755 /app /app/server /usr/local/bin/migrate
+
+ARG VCS_REF
+LABEL org.opencontainers.image.source="https://github.com/ibm-hyper-protect/contract-manager" \
+      org.opencontainers.image.revision="${VCS_REF}"
 
 USER app
 EXPOSE 8080

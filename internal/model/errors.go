@@ -52,6 +52,10 @@ func ErrNotFound(msg string) *AppError {
 	return &AppError{Code: "NOT_FOUND", Message: msg, HTTPStatus: http.StatusNotFound}
 }
 
+func ErrSSONotConfigured() *AppError {
+	return &AppError{Code: "SSO_NOT_CONFIGURED", Message: "SSO is not configured. Set all four APPID_* settings or use local login.", HTTPStatus: http.StatusNotFound}
+}
+
 func ErrBuildNotFound(id string) *AppError {
 	return &AppError{
 		Code:       "BUILD_NOT_FOUND",
