@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.28
+# syntax=docker/dockerfile:1.29
 
 # ── Stage 1: Build ──────────────────────────────────────────────────
 FROM docker.io/golang:1.27-alpine AS builder
