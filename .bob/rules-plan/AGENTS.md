@@ -2,36 +2,11 @@
 
 This file provides guidance to agents when working with code in this repository.
 
-## Architectural Constraints
-
-### Layering (strict)
-```
-handler → service → repository.Querier (interface)
-                  → keymgmt.KeyProvider (interface)
-                  → contract.Engine (interface)
-```
-- Handlers never import `repository` directly (only via service).
-- Services never import `handler` or `middleware`.
-- All cross-cutting concerns (auth, RBAC, rate-limiting, signature) are in `middleware`, not services.
-
-### Key management
-- No Vault. `keymgmt.KeyProvider` abstracts DB-backed encrypted key storage. Any future key backend must implement this interface.
-- Private keys are decrypted only in memory at usage time — never returned over the wire unless explicitly marked `OneTimePrivateExport`.
-
-### Database
-- SQLC owns `internal/repository/` — generated from `internal/repository/queries/*.sql` + `migrations/`.
-- Tables added for v2 features (build_keys, attestation_evidence, attestation_verifications) use raw SQL in `service/v2_store.go` because they were added after SQLC setup. Plan to migrate these into queries/ over time.
-- DB enum types (`build_status`, `persona_role`, `audit_event_type`) are mapped to Go `string` in `sqlc.yaml` — use typed string aliases in `internal/model/` for safety.
-
-### Contract engine is a single implementation
-- `internal/contract/Engine` interface has only one real implementation (`contractgo`), which wraps the `contract-go` v2 SDK. Tests should use the mock key provider (`keymgmt/mock`) but there is no mock `Engine` yet.
-
-### HTTP server
-- Single binary, no microservices. Router is built in `cmd/server/main.go:buildRouter()` — all route registration happens there.
-- No external service discovery or messaging; everything is synchronous HTTP + PostgreSQL.
-
-### State machine coupling
-- `model.ValidTransitions` is the single source for build lifecycle. Services (`build_service.go`, `contract_service.go`, `key_service.go`) all call `CanTransitionTo()` before any mutation — do not add status checks elsewhere.
-
-### Signature requirement
-- The request signature scheme (`middleware/signature.go`) ties every mutating request to a user's registered RSA public key. This means users **must** complete setup (register public key) before they can submit any business data. Plan features accordingly.
+- Layering: `handler → service → repository.Querier | keymgmt.KeyProvider | contract.Engine`. Cross-cutting concerns (auth, RBAC, signature, rate-limit, setup guard) live in `middleware`, not services.
+- Single synchronous binary + PostgreSQL; all routes in `cmd/server/main.go:buildRouter()`. Migrations are applied externally (compose `migrate` service), never by the server.
+- Build state machine is centralized in `model.ValidTransitions`; services call `CanTransitionTo()` — don't add status checks elsewhere.
+- Every mutating authenticated request is bound to a user's registered RSA key (`X-Signature*` headers), so users must finish setup (password change + key registration) before any business action. Features must respect `SetupGuard` allow-list.
+- Identity keys are multi-key (`user_public_keys`, max 5 active, 90-day expiry, enforced in `UserKeyService`, not DB). Key registration/revocation lock the user row.
+- Key backend is DB-only (passphrase-encrypted PEM); new backends implement `keymgmt.KeyProvider`. Private keys are decrypted in memory only at use time.
+- Tables added post-SQLC setup (`build_keys`, `attestation_*`) use raw pgx in `service/v2_store.go`; migrating them into `queries/` is the preferred direction.
+- Only one `contract.Engine` implementation (`contractgo`, SDK v3) and no mock engine; `keymgmt/mock` exists.

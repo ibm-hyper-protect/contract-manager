@@ -2,40 +2,16 @@
 
 This file provides guidance to agents when working with code in this repository.
 
-## Non-Negotiable Coding Rules
+(General rules are in the root `AGENTS.md`; only coding-specific checklists here.)
 
-### Repository layer
-- NEVER edit `internal/repository/*.sql.go` — they are SQLC-generated.
-- Add/modify queries only in `internal/repository/queries/*.sql`, then run `./scripts/generate-repository.sh`.
-- For tables outside SQLC scope (attestation, build_keys), use raw `pgx` SQL inside `service/v2_store.go`.
+## Adding a new endpoint
+1. SQL in `internal/repository/queries/*.sql` → `./scripts/generate-repository.sh` (tables outside SQLC: raw pgx in `service/v2_store.go`).
+2. Service method in `internal/service/` (call `CanTransitionTo` for build mutations; `SystemLogService.LogEvent` for events).
+3. Handler in `internal/handler/` using `readJSON`/`writeJSON`/`writeError(w, model.ErrXxx(...))`.
+4. Route in `cmd/server/main.go:buildRouter()` with `middleware.RequireRole(...)` as needed. Mutating routes inherit signature enforcement automatically.
+5. Key operations go through `keymgmt.KeyProvider`; no Vault.
 
-### Error handling
-- HTTP error responses MUST use `model.AppError` constructors from `internal/model/errors.go`.
-- In handlers: `writeError(w, model.ErrXxx(...))` — never `http.Error()` or `json.NewEncoder(w).Encode(...)` directly for errors.
-- In services: domain errors → return `*model.AppError` directly; unexpected errors → `fmt.Errorf("context: %w", err)`.
-
-### Request body
-- Normal JSON: `readJSON(r, &req)` — enforces 1 MB + disallows unknown fields.
-- Large payloads (encrypted data): `readJSONLarge(r, &req, customSize)`.
-- On early returns where body was partially read, call `drainBody(r)`.
-
-### Signature enforcement
-- Every POST/PUT/PATCH/DELETE on authenticated routes requires `X-Signature`, `X-Signature-Hash`, `X-Timestamp`.
-- Three exemptions (no signature needed): `POST /auth/logout`, `PATCH .../password`, `PUT .../public-key`.
-
-### State machine
-- Always use `BuildStatus.CanTransitionTo(next)` — never compare build status strings directly.
-- Return `model.ErrInvalidStateTransition(current, expected)` on failure.
-
-### Logging
-- `log/slog` only. Also call `service.SystemLogService.LogEvent(...)` for all security/business events.
-
-### Import order (enforced by gofmt)
-1. stdlib → 2. third-party → 3. `github.com/ibm-hyper-protect/contract-manager/internal/...`
-
-### Adding a new endpoint
-1. Add SQL query to `internal/repository/queries/`, run `./scripts/generate-repository.sh`.
-2. Add method to `internal/service/`.
-3. Add handler method to `internal/handler/`; use `writeJSON` / `writeError`.
-4. Register route in `cmd/server/main.go:buildRouter()`; apply `middleware.RequireRole(...)` as needed.
-5. No Vault calls — key ops go through `keymgmt.KeyProvider` interface.
+## Gotchas
+- Handlers never import `repository` directly; go through services.
+- Convert `pgtype.Timestamptz` to `*time.Time` in the service layer (pattern in `auth_service.go`).
+- A schema change needs a new numbered `migrations/NNN_*.up.sql` + `.down.sql` before regenerating SQLC.

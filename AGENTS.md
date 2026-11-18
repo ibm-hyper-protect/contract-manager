@@ -2,106 +2,34 @@
 
 This file provides guidance to agents when working with code in this repository.
 
-## Stack
-
-- Go 1.26, module `github.com/ibm-hyper-protect/contract-manager`
-- Chi v5 router, pgx/v5 (PostgreSQL), SQLC-generated repository layer
-- No external test framework — standard `testing` package only
-- Deployed via Docker Compose (`compose/docker-compose.yaml`)
-
-## Build & Run Commands
-
+## Commands (run from repo root; no Makefile)
 ```bash
-# Build binary
 go build -o server ./cmd/server
-
-# Run all tests
 go test ./...
-
-# Run a single test
-go test ./internal/service -run TestLogin
-
-# Vet
-go vet ./...
-
-# Format
-gofmt -w .
-
-# Regenerate SQLC repository code (after editing SQL in internal/repository/queries/)
-./scripts/generate-repository.sh
+go test ./internal/service -run TestLogin        # single test (add -v for output)
+go vet ./... && gofmt -l .
+./scripts/generate-repository.sh                 # sqlc generate + license-header carry-over (use this, not bare `sqlc generate`)
 ```
+- DB-backed tests skip unless `TEST_DATABASE_URL` is set (`internal/service/user_key_service_test.go`, `internal/handler/*integration_test.go`). Some contract tests skip without `openssl`.
+- Schema migrations are NOT applied by the server. They are applied by the `migrate` service in `compose/docker-compose.yaml` (golang-migrate, `migrations/NNN_*.{up,down}.sql`). SQLC reads `migrations/` as its schema. `migrations/README.md` is stale (mentions `backend/` paths, stops at 013).
 
-> There is no Makefile. All commands are run from the repo root.
+## Stack
+Go 1.27 (`go.mod`), chi v5, pgx/v5, SQLC, `contract-go/v3`. Standard `testing` only. Single binary: `cmd/server/main.go` (`buildRouter()` registers all routes; `seedAdmin` runs on startup from `ADMIN_EMAIL/ADMIN_PASSWORD/ADMIN_NAME`).
 
-## Architecture
+## Non-obvious patterns
+- **SQLC**: never edit `internal/repository/*.sql.go`. Edit `internal/repository/queries/*.sql`, regenerate. DB enums (`build_status`, `persona_role`, `audit_event_type`) map to plain Go `string` (`sqlc.yaml`); use typed aliases from `internal/model/`.
+- **Raw SQL exception**: `build_keys`, `attestation_evidence`, `attestation_verifications` and attestation columns on `builds` are queried with raw pgx in `internal/service/v2_store.go`.
+- **Errors**: handlers use `writeError(w, model.ErrXxx(...))` (`internal/handler/response.go`), never `http.Error()`. Services return `*model.AppError` for domain errors, `fmt.Errorf("ctx: %w", err)` otherwise.
+- **Body parsing**: `readJSON` (1 MB, rejects unknown fields), `readJSONLarge(r,&v,max)` (encrypted payloads), `drainBody(r)` on early exits.
+- **Auth**: opaque Bearer tokens (SHA-256 hash looked up in `api_tokens`, `service.HashToken`) — not JWT. Middleware chain in `buildRouter`: `Auth` → `SetupGuard` → `RequireRequestSignature`. Role checks via `middleware.RequireRole(...)` on the route, not in handlers. `RequireBuildAccess` hits the DB per request.
+- **Request signatures**: POST/PUT/PATCH/DELETE need `X-Signature`, `X-Signature-Hash`, `X-Timestamp` (signed payload `{"method","path","data","timestamp"}`). Exempt: `POST /auth/logout`, `PATCH /users/*/password`, and `PUT /users/*/public-key` only when caller has zero active keys (`isSignatureExempt`). `X-Key-Fingerprint` picks the key when several are active.
+- **User keys**: use `UserKeyService` / `user_public_keys` table only; the `users.public_key*` columns are deprecated. Max 5 active keys; password confirmation required after any key history (app-level, not DB constraints).
+- **Build state machine**: `model.BuildStatus.CanTransitionTo()` / `ValidTransitions` in `internal/model/build.go`; return `model.ErrInvalidStateTransition`. Never compare status strings.
+- **Keys**: no Vault. Private keys are passphrase-encrypted PEM (AES-256-CBC) in PostgreSQL via `keymgmt.KeyProvider` (`keymgmt/db`; `keymgmt/mock` for tests). No mock `contract.Engine` exists.
+- **Logging**: `log/slog` only; also `SystemLogService.LogEvent(...)` for security/business events.
 
-```
-cmd/server/main.go      → wires all services; single binary
-internal/config/        → env-var config only (no config files)
-internal/model/         → domain types + AppError constructors
-internal/repository/    → SQLC-generated code; DO NOT edit *.sql.go directly
-internal/repository/queries/*.sql → only source of truth for DB queries
-internal/service/       → business logic; wraps repository.Querier interface
-internal/handler/       → HTTP handlers; use writeJSON / writeError helpers
-internal/middleware/    → Chi middleware (auth, RBAC, signature, rate-limit)
-internal/contract/      → Engine interface + contractgo implementation
-internal/keymgmt/       → KeyProvider interface; db and mock implementations
-```
+## Style
+gofmt; import groups: stdlib / third-party / `github.com/ibm-hyper-protect/contract-manager/internal/...`. `XxxHandler`/`NewXxxHandler`, `XxxService`/`NewXxxService`.
 
-## Critical Non-Obvious Patterns
-
-### Database layer
-- `internal/repository/*.sql.go` files are **SQLC-generated** — never edit them manually. Edit `.sql` files in `internal/repository/queries/` then run `./scripts/generate-repository.sh`.
-- `v2_store.go` contains **raw SQL** (not SQLC) for tables not yet in migrations that SQLC processes. New tables should prefer adding to queries/ and regenerating.
-- `pgtype.Timestamptz` is used for nullable timestamps; convert to `*time.Time` before returning from service layer (see `auth_service.go` for the pattern).
-
-### Error handling
-- All HTTP errors **must** use `model.AppError` constructors from `internal/model/errors.go` — e.g. `model.ErrNotFound(...)`, `model.ErrForbidden(...)`. Do **not** return raw errors or ad-hoc JSON to the client.
-- In handlers, call `writeError(w, model.ErrXxx(...))` — never `http.Error()`.
-- In services, return `fmt.Errorf("context: %w", err)` for internal errors; return `*model.AppError` for domain errors that the handler should surface directly.
-
-### Request body parsing
-- Use `readJSON(r, &req)` for normal-sized JSON bodies (enforces 1 MB limit, `DisallowUnknownFields`).
-- Use `readJSONLarge(r, &req, n)` for large encrypted payloads (skips unknown-fields check).
-- Call `drainBody(r)` before returning on early-exit paths where the body was not fully consumed.
-
-### Signature middleware
-- Every authenticated **mutating** request (POST/PUT/PATCH/DELETE) requires `X-Signature`, `X-Signature-Hash`, and `X-Timestamp` headers — **except** `/auth/logout` and `PATCH .../password`. `PUT .../public-key` is exempt only when the caller has zero active keys.
-- `X-Key-Fingerprint` selects an active identity key from `user_public_keys`. Without this header, verification succeeds only when exactly one key is active. Use the verified signing key from the request context for audit records and download receipts.
-- Identity key changes go through `UserKeyService`; registration and revocation lock the user row. Registration requires password confirmation after any key history and allows at most five active keys. Do not read or update the deprecated `users.public_key*` columns.
-- The signed payload is JSON: `{"method":"POST","path":"/builds","data":<body>,"timestamp":<ms>}`.
-
-### RBAC middleware
-- `middleware.RequireRole(...)` checks roles stored in JWT context — apply **before** the handler, not inside it.
-- `middleware.RequireBuildAccess(queries, "id")` — non-ADMIN users can only access builds they are assigned to; this query hits the DB per request.
-
-### Key management
-- There is **no Vault** — private keys are stored as AES-256-CBC encrypted PEM blobs in PostgreSQL (`keymgmt/db/provider.go`). The comment in `config.go` is the canonical explanation.
-- `keymgmt.KeyProvider` is the interface; use `keymgmt/mock` in unit tests.
-
-### Build state machine
-- Build lifecycle is a strict linear sequence defined in `model.BuildStatus` / `ValidTransitions`. Use `status.CanTransitionTo(next)` to validate — never do manual string comparison.
-- `BuildStatus.IsTerminal()` returns true for FINALIZED, CONTRACT_DOWNLOADED, CANCELLED.
-
-### Logging
-- Use `log/slog` (standard library) everywhere — never `fmt.Println` or `log.Printf`.
-- All business events are also written to the `system_logs` table via `service.SystemLogService.LogEvent(...)`.
-
-### Import ordering (gofmt convention used throughout)
-1. Standard library
-2. Blank line
-3. Third-party (`github.com/go-chi/...`, `github.com/google/uuid`, etc.)
-4. Blank line
-5. Internal (`github.com/ibm-hyper-protect/contract-manager/internal/...`)
-
-### Naming conventions
-- Handler structs: `XxxHandler`; constructor: `NewXxxHandler`
-- Service structs: `XxxService`; constructor: `NewXxxService`
-- Repository input params: SQLC-generated `XxxParams` structs
-- Enum-style constants: typed string aliases (e.g. `BuildStatus`, `PersonaRole`)
-
-## Environment Variables Required at Runtime
-- `DATABASE_URL` — required, no default
-- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` — seed admin on first start if no users exist
-- `TOKEN_EXPIRY` (default `24h`), `BCRYPT_COST` (default `12`)
-- `LOG_FORMAT` — `json` (default) or `text`
+## Runtime env
+`DATABASE_URL` (required), `TOKEN_EXPIRY` (24h), `BCRYPT_COST` (12), `LOG_FORMAT` (json|text), `MAX_PAYLOAD_SIZE` (50MB), `REQUEST_TIMEOUT` (30s), `CORS_*`, `APPID_*` (SSO off if any empty). Full list: `internal/config/config.go`.

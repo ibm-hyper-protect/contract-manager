@@ -147,15 +147,19 @@ docker compose -f compose/docker-compose.yaml --project-directory compose \
 ├── cmd/server/             # Main entrypoint — wires services, builds router
 ├── internal/
 │   ├── config/             # Environment variable config
-│   ├── contract/           # Engine interface + contract-go v3 implementation
+│   ├── contract/           # Engine interface, contract-go v3 implementation, input validation
+│   ├── crypto/             # Hashing, signature verification, private key and fingerprint helpers
 │   ├── handler/            # HTTP handlers (writeJSON / writeError)
-│   ├── keymgmt/            # KeyProvider interface; db implementation
+│   ├── keymgmt/            # KeyProvider interface; db and mock implementations
 │   ├── middleware/         # Auth, RBAC, signature, rate-limit, setup guard
 │   ├── model/              # Domain types + AppError constructors
 │   ├── repository/         # SQLC-generated DB layer (do not edit *.sql.go)
 │   ├── repository/queries/ # SQL source files — edit these, then run ./scripts/generate-repository.sh
 │   └── service/            # Business logic
-├── migrations/             # golang-migrate SQL files (020 migrations)
+├── migrations/             # golang-migrate SQL files (21 migrations)
+├── docs/                   # API reference, contract validation, multi-key testing guide
+├── Design/                 # High/low-level, security and deployment design documents
+├── scripts/                # generate-repository.sh (SQLC generation)
 ├── compose/
 │   ├── docker-compose.yaml # Stack definition
 │   ├── .env.example        # Config template — copy to .env
@@ -170,7 +174,7 @@ docker compose -f compose/docker-compose.yaml --project-directory compose \
 
 | Container | Image | Exposed port | Purpose |
 |---|---|---|---|
-| `hpcr-reverse-proxy` | `nginx:1.27-alpine` | `8080` → 80 | Reverse proxy, rate limiting, TLS termination |
+| `hpcr-reverse-proxy` | `nginx:1.31-alpine` | `8080` → 80 | Reverse proxy, rate limiting, TLS termination |
 | `hpcr-backend` | `contract-manager:local` | internal 8080 | Go API server |
 | `hpcr-postgres` | `postgres:16-alpine` | internal 5432 | PostgreSQL database |
 | `hpcr-migrate` | `contract-manager:local` | — | Schema migration runner (exits on completion) |
@@ -209,11 +213,18 @@ SSO login is disabled unless **all four** variables below are set. Users must al
 
 ## Development
 
+Go 1.27 is required for local development (see `go.mod`).
+
 ### Run tests
 
 ```bash
 go test ./cmd/... ./internal/...
+
+# Single test
+go test ./internal/service -run TestLogin -v
 ```
+
+PostgreSQL integration tests are skipped unless `TEST_DATABASE_URL` is set. Some contract tests are skipped when `openssl` is not installed.
 
 ### Lint / vet
 
