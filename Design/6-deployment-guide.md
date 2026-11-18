@@ -24,7 +24,7 @@ Default container topology:
 
 - `reverse_proxy` (nginx, public entrypoint)
 - `backend` (Go API)
-- `postgres` (PostgreSQL 16)
+- `postgres` (PostgreSQL 18)
 - `pgadmin` (optional DB admin UI, dev/ops use)
 - `migrate` (one-shot schema migration job)
 

@@ -64,7 +64,7 @@ docker compose -f compose/docker-compose.yaml --project-directory compose up -d
 ```
 
 This starts five containers in dependency order:
-1. **`hpcr-postgres`** — PostgreSQL 16 database
+1. **`hpcr-postgres`** — PostgreSQL 18 database
 2. **`hpcr-migrate`** — runs all schema migrations then exits
 3. **`hpcr-backend`** — Go API server (waits for migrate to complete)
 4. **`hpcr-reverse-proxy`** — nginx reverse proxy (waits for backend healthy)
@@ -176,7 +176,7 @@ docker compose -f compose/docker-compose.yaml --project-directory compose \
 |---|---|---|---|
 | `hpcr-reverse-proxy` | `nginx:1.31-alpine` | `8080` → 80 | Reverse proxy, rate limiting, TLS termination |
 | `hpcr-backend` | `contract-manager:local` | internal 8080 | Go API server |
-| `hpcr-postgres` | `postgres:16-alpine` | internal 5432 | PostgreSQL database |
+| `hpcr-postgres` | `postgres:18-alpine` | internal 5432 | PostgreSQL database |
 | `hpcr-migrate` | `contract-manager:local` | — | Schema migration runner (exits on completion) |
 | `hpcr-pgadmin` | `dpage/pgadmin4:9` | `5050` → 80 | Database management UI |
 
@@ -267,6 +267,9 @@ docker compose -f compose/docker-compose.yaml --project-directory compose up -d
 
 **`/health` returns 429**
 This should not happen — the `/health` endpoint is registered outside the rate-limited middleware group. If you see it, ensure you are running the image built from the current source.
+
+**Postgres fails to start after upgrading from an older checkout (`database files are incompatible with server`)**
+The compose file now uses `postgres:18-alpine`. A data directory initialised by PostgreSQL 16 cannot be opened by 18. Dump and restore the data, or (if it is disposable) do a full reset as described above.
 
 **`compose/data/postgres` permission errors**
 The postgres data directory is written by the postgres container running as its internal UID. If you see permission errors after a `sudo rm -rf`, recreate the directory:

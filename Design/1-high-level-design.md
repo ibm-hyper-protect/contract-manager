@@ -865,7 +865,7 @@ The `GET /builds/{id}/verify` endpoint:
 
 ### Database
 
-- PostgreSQL 16
+- PostgreSQL 18
 - Stores all application data including user/auth/audit/build records, encrypted section payloads, and build key material (`build_keys` + `build_keys_private` tables).
 
 ---
