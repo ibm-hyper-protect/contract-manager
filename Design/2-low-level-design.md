@@ -90,7 +90,7 @@ internal/
     key_service.go              # V2: build-scoped key lifecycle
     contract_service.go         # V2: section encryption + finalization
     attestation_service.go      # V2: evidence upload + cryptographic verification
-migrations/*.sql                # 001..019
+migrations/*.sql                # 001..022
 ```
 
 ### 2.2 Desktop App
@@ -256,7 +256,7 @@ Implemented by:
 - role is workflow-assignable (`SOLUTION_PROVIDER`, `DATA_OWNER`, `AUDITOR`, `ENV_OPERATOR`)
 - assignee exists
 - assignee has the target global role
-- role not already assigned for that build/user pair
+- user not already assigned to that role on this build (several users per role are allowed)
 
 ---
 
@@ -264,7 +264,7 @@ Implemented by:
 
 ## 5.1 Migrations
 
-Current migration chain (001..020) defines users, roles, tokens, builds, sections, assignments, audit events, system logs, downloaded terminal status, build keys, attestation tables, and DB key storage. Migration 020 removes deprecated V1 enum values from `build_status` and `audit_event_type`.
+Current migration chain (001..022) defines users, roles, tokens, builds, sections, assignments, audit events, system logs, downloaded terminal status, build keys, attestation tables, and DB key storage. Migration 020 removes deprecated V1 enum values from `build_status` and `audit_event_type`. Migration 022 allows several users per role on a build.
 
 ## 5.2 Enumerations
 

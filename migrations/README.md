@@ -36,7 +36,7 @@ These migrations implement the security and assignment features required by the 
 
 ### 010: Build Assignments
 - **Creates**: build_assignments table for explicit user-to-role assignments per build
-- **Constraint**: Each role can only be assigned once per build (UNIQUE on build_id, role_id)
+- **Constraint**: Each role can only be assigned once per build (UNIQUE on build_id, role_id); relaxed by 022 to allow several users per role
 - **Purpose**: Enforces that only assigned users can contribute to specific builds
 
 ### 011: Builds Table Update
@@ -61,6 +61,12 @@ These migrations implement the security and assignment features required by the 
 - **Down**: first clears deprecated key fields, then restores each user's newest non-revoked key (including expired keys) into `users`; additional keys and revocation history are lost. Users with only revoked keys retain empty fields, so rollback cannot revive their old key.
 - **Old columns**: `users.public_key*` stay for now and are marked deprecated; application services use only `user_public_keys`. A later migration removes the old columns.
 - **Application policy**: `UserKeyService` enforces a maximum of five active keys, 90-day validity for new keys, and password confirmation after any registration history. These limits are not database constraints.
+
+## 022: Several Users per Role
+
+- **Changes**: replaces `UNIQUE (build_id, role_id)` on `build_assignments` with `UNIQUE (build_id, role_id, user_id)`
+- **Purpose**: several users (e.g. two auditors) can hold the same role on one build; any one of them can act
+- **Rollback**: `down` fails while a build still has several users in one role. golang-migrate then reports the database as dirty and no data is lost. Delete the extra assignments, run `migrate force 22`, then `migrate down 1` again.
 
 ## Applying Migrations
 

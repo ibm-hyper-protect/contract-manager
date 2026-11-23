@@ -26,7 +26,7 @@ go vet ./...
 go test ./...
 ```
 
-Database tests skip unless `TEST_DATABASE_URL` is set. Use a disposable PostgreSQL database with migrations through 021; these tests insert users, keys, builds, roles, tokens, audit events, and system logs. They clean up their fixtures, but must not run against production.
+Database tests skip unless `TEST_DATABASE_URL` is set. Use a disposable PostgreSQL database with migrations through 022; these tests insert users, keys, builds, roles, tokens, audit events, and system logs. They clean up their fixtures, but must not run against production.
 
 Example (requires a running Podman machine and a free port):
 

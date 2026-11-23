@@ -181,7 +181,7 @@ In the current implementation, the 90-day window is encoded in DB/query logic an
 
 ### Build Assignments
 
-When a build is created, the Admin **assigns specific users** to each persona role for that build. Only the assigned user can act in that role. This provides two layers of access control:
+When a build is created, the Admin **assigns specific users** to each persona role for that build. Several users can be assigned to the same role (e.g. two auditors); only assigned users can act in that role, and any one of them is sufficient for a workflow step. This provides two layers of access control:
 
 1. **Role-based:** User must have the correct persona role.
 2. **Assignment-based:** User must be explicitly assigned to this specific build.
@@ -260,7 +260,7 @@ When a build is created, the Admin **assigns specific users** to each persona ro
 
 **Backend Actions (V2):**
 
-- Verifies the Auditor is the assigned user for this build.
+- Verifies the Auditor is an assigned user for this build.
 - Encrypts attestation public key using required runtime encryption certificate.
 - Signs `envWorkloadSignature` and `contractHash` using `HpcrContractSign(...)` with private key material decrypted from `build_keys_private` and loaded transiently into backend memory.
 - Assembles deterministic YAML contract.
@@ -292,11 +292,11 @@ When a build is created, the Admin **assigns specific users** to each persona ro
 
 **Backend Actions:**
 
-- Verifies the Env Operator is the assigned user for this build.
+- Verifies the Env Operator is an assigned user for this build.
 - Verifies signature against the Env Operator's **registered public key**.
 - Emits `CONTRACT_DOWNLOADED` audit event with signature.
 
-> This creates a cryptographic proof-of-receipt: the audit chain records that the assigned Env Operator downloaded and verified the correct contract.
+> This creates a cryptographic proof-of-receipt: the audit chain records that an assigned Env Operator downloaded and verified the correct contract.
 
 ---
 
@@ -332,7 +332,7 @@ When a build is created, the Admin **assigns specific users** to each persona ro
 2. Compute `SHA256(canonical_json(build_create_request))` locally.
 3. Sign the canonical request hash with the Admin's **registered identity private key**.
 4. Create the build via `POST /builds`.
-5. Assign personas with separate signed calls to `POST /builds/{id}/assignments` (one per workflow role).
+5. Assign personas with separate signed calls to `POST /builds/{id}/assignments` (one per user and workflow role).
 
 **Backend Actions:**
 
@@ -435,7 +435,7 @@ erDiagram
 - **Role** — A reference table of persona types (seeded at deployment). Not an ENUM — it's a first-class table so all other tables reference it via foreign key.
 - **User Role** — Junction table: "User X has role Y, assigned by Admin Z." A user can have multiple roles.
 - **Build** — A contract being collaboratively constructed. Tracks current lifecycle status and eventually holds the final contract YAML/hash (raw YAML in current flow; legacy rows may be base64). `encryption_certificate` pins the runtime certificate on the first new section submission; legacy builds may leave it unset.
-- **Build Assignment** — "For Build B, role Y is performed by User X." This is how the Admin binds specific users to specific builds. One user per role per build.
+- **Build Assignment** — "For Build B, role Y is performed by User X." This is how the Admin binds specific users to specific builds. Several users may hold the same role on a build; any one of them can act.
 - **Build Section** — Encrypted data submitted by a persona during the build. Current flow stores up to 3 role sections (Solution Provider, Data Owner, Auditor), each with encrypted payload, hash, and signature metadata.
 - **Build Key** — Build-scoped signing or attestation key. For `generate` mode, public key is stored in `build_keys` and the AES-256-CBC encrypted private key PEM is stored in `build_keys_private`; for `upload_public` mode, only the public key is stored. Private key material is decrypted transiently by backend for runtime-required operations and is never persisted in plaintext.
 - **Attestation Evidence** — Records + signature files uploaded by Data Owner or Env Operator for post-finalization attestation verification.

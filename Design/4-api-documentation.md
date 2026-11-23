@@ -970,7 +970,8 @@ Notes:
 
 - `role_id` or `role_name` required.
 - Build must not be terminal.
-- One assignment per role per build (DB uniqueness on `build_id, role_id`).
+- Several users may hold the same role on one build (e.g. two auditors); call this endpoint once per user. Any assigned user of a role may perform that role's workflow step. A user can hold a role only once per build (DB uniqueness on `build_id, role_id, user_id`).
+- Auditors: the signing and attestation keys are protected by the passphrase of the auditor who registered them. Another assigned auditor needs that passphrase to finalize or verify.
 - Assignable roles are limited to workflow roles: `SOLUTION_PROVIDER`, `DATA_OWNER`, `AUDITOR`, `ENV_OPERATOR`.
 - Assignee must already hold the target role globally.
 
@@ -1228,6 +1229,8 @@ For `contract-go` contract operations that require private keys, backend workers
 ```
 
 - Transitions build to `SIGNING_KEY_REGISTERED`.
+- A second registration after the build left `CREATED` returns `409 SIGNING_KEY_ALREADY_REGISTERED`.
+- The status check is not atomic: two registrations that overlap in time, or a retry after a failed first attempt, can both succeed and leave several active keys for one build. Finalization then uses the newest active key.
 
 #### POST /builds/{id}/keys/attestation
 
@@ -1253,6 +1256,8 @@ For `contract-go` contract operations that require private keys, backend workers
 
 - Response `201`: key object (same shape as signing key response).
 - Transitions build to `ATTESTATION_KEY_REGISTERED`.
+- A second registration once the build reached `ATTESTATION_KEY_REGISTERED` or later returns `409 ATTESTATION_KEY_ALREADY_REGISTERED`.
+- The status check is not atomic: two registrations that overlap in time, or a retry after a failed first attempt, can both succeed and leave several active keys for one build. Finalization then uses the newest active key.
 
 #### GET /builds/{id}/keys/signing/public
 
