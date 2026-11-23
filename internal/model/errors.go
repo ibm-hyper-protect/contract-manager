@@ -115,6 +115,16 @@ func ErrKeyAlreadyRegistered() *AppError {
 	return &AppError{Code: "KEY_ALREADY_REGISTERED", Message: "This public key has already been registered.", HTTPStatus: http.StatusConflict}
 }
 
+// ErrSigningKeyAlreadyRegistered reports a second signing key registration for a build.
+func ErrSigningKeyAlreadyRegistered() *AppError {
+	return &AppError{Code: "SIGNING_KEY_ALREADY_REGISTERED", Message: "A signing key is already registered for this build.", HTTPStatus: http.StatusConflict}
+}
+
+// ErrAttestationKeyAlreadyRegistered reports a second attestation key registration for a build.
+func ErrAttestationKeyAlreadyRegistered() *AppError {
+	return &AppError{Code: "ATTESTATION_KEY_ALREADY_REGISTERED", Message: "An attestation key is already registered for this build.", HTTPStatus: http.StatusConflict}
+}
+
 // ErrKeyNotFound reports an unknown, foreign, or already revoked identity key.
 func ErrKeyNotFound() *AppError {
 	return &AppError{Code: "KEY_NOT_FOUND", Message: "Public key not found or already revoked.", HTTPStatus: http.StatusNotFound}

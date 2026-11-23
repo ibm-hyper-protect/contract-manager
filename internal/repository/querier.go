@@ -50,7 +50,6 @@ type Querier interface {
 	ForcePasswordChange(ctx context.Context, id uuid.UUID) error
 	GetAPITokenByHash(ctx context.Context, tokenHash string) (ApiToken, error)
 	GetAuditEventsByBuildID(ctx context.Context, buildID pgtype.UUID) ([]GetAuditEventsByBuildIDRow, error)
-	GetBuildAssignmentByBuildAndRole(ctx context.Context, arg GetBuildAssignmentByBuildAndRoleParams) (GetBuildAssignmentByBuildAndRoleRow, error)
 	GetBuildAssignmentsByBuildID(ctx context.Context, buildID uuid.UUID) ([]GetBuildAssignmentsByBuildIDRow, error)
 	GetBuildAssignmentsByUserID(ctx context.Context, userID uuid.UUID) ([]GetBuildAssignmentsByUserIDRow, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (GetBuildByIDRow, error)

@@ -93,6 +93,14 @@ func (s *KeyService) RegisterSigningKey(
 	if err := s.ensureBuildAndAuditorAssignment(ctx, buildID, actorID); err != nil {
 		return nil, err
 	}
+	// Only one signing key per build: a later registration would silently replace it.
+	build, err := s.queries.GetBuildByID(ctx, buildID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load build: %w", err)
+	}
+	if model.BuildStatus(build.Status) != model.StatusCreated {
+		return nil, model.ErrSigningKeyAlreadyRegistered()
+	}
 	if err := keymgmt.ValidateGenerationPassphrase(mode, passphrase); err != nil {
 		return nil, err
 	}
@@ -148,6 +156,15 @@ func (s *KeyService) RegisterAttestationKey(
 ) (*KeyRegistrationResult, *keymgmt.OneTimePrivateExport, error) {
 	if err := s.ensureBuildAndAuditorAssignment(ctx, buildID, actorID); err != nil {
 		return nil, nil, err
+	}
+	// Only one attestation key per build: a later registration would silently replace it.
+	build, err := s.queries.GetBuildByID(ctx, buildID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load build: %w", err)
+	}
+	switch model.BuildStatus(build.Status) {
+	case model.StatusAttestationKeyRegistered, model.StatusFinalized, model.StatusContractDownloaded:
+		return nil, nil, model.ErrAttestationKeyAlreadyRegistered()
 	}
 	if err := keymgmt.ValidateGenerationPassphrase(mode, passphrase); err != nil {
 		return nil, nil, err
