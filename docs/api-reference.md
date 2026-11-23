@@ -483,9 +483,15 @@ Auth required. Any authenticated user with build access.
 **Response `200`**
 ```json
 [
-  { "user_id": "uuid", "user_name": "Alice", "role": "AUDITOR", "assigned_at": "..." }
+  {
+    "id": "uuid", "build_id": "uuid", "role_id": "uuid", "user_id": "uuid",
+    "assigned_by": "uuid", "assigned_at": "...",
+    "role_name": "AUDITOR", "user_name": "Alice", "user_email": "alice@example.com"
+  }
 ]
 ```
+
+The list contains one entry per user and role, so a role with several assigned users appears several times.
 
 ---
 
@@ -499,6 +505,8 @@ Auth required. Role: `ADMIN` or `AUDITOR`. Build access required. Signature head
 ```
 
 **Response `201`** — assignment object.
+
+Several users can be assigned to the same role on one build by calling this endpoint once per user; any of them may perform that role's step. Assigning the same user to the same role twice returns `400 INVALID_REQUEST`.
 
 ---
 
@@ -579,6 +587,8 @@ Auth required. Role: `AUDITOR`. Build access required. Signature headers require
 
 Transitions build: `CREATED → SIGNING_KEY_REGISTERED`
 
+A build has one signing key. Once the build has left `CREATED`, another registration returns `409 SIGNING_KEY_ALREADY_REGISTERED`. The status check is not atomic: two registrations that overlap in time, or a retry after a failed first attempt, can both succeed and leave several active keys for one build. Finalization then uses the newest active key.
+
 ---
 
 ### `POST /builds/{id}/keys/attestation`
@@ -607,6 +617,8 @@ Auth required. Role: `AUDITOR`. Build access required. Signature headers require
 ```
 
 Transitions build: `ENVIRONMENT_STAGED → ATTESTATION_KEY_REGISTERED`
+
+A build has one attestation key. Once the build has reached `ATTESTATION_KEY_REGISTERED` or later, another registration returns `409 ATTESTATION_KEY_ALREADY_REGISTERED`. The status check is not atomic: two registrations that overlap in time, or a retry after a failed first attempt, can both succeed and leave several active keys for one build. Finalization then uses the newest active key.
 
 ---
 

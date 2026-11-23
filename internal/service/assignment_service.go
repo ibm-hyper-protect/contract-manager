@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/model"
 	"github.com/ibm-hyper-protect/contract-manager/internal/repository"
@@ -40,6 +42,8 @@ type CreateAssignmentInput struct {
 
 // CreateAssignment assigns a user to a specific role for a build.
 // This implements the two-layer access control: role + explicit assignment.
+// A role may be assigned to several users on the same build; any of them can
+// perform that role's workflow step. A user can hold a given role only once per build.
 func (s *AssignmentService) CreateAssignment(ctx context.Context, input CreateAssignmentInput) (*repository.BuildAssignment, error) {
 	// 1. Validate build exists and is not finalized
 	build, err := s.queries.GetBuildByID(ctx, input.BuildID)
@@ -118,7 +122,7 @@ func (s *AssignmentService) CreateAssignment(ctx context.Context, input CreateAs
 		return nil, fmt.Errorf("failed to check existing assignment: %w", err)
 	}
 	if alreadyAssigned {
-		return nil, model.ErrInvalidRequest(fmt.Sprintf("user is already assigned to role '%s' for this build", input.RoleName))
+		return nil, model.ErrInvalidRequest(fmt.Sprintf("user is already assigned to role '%s' for this build", role.Name))
 	}
 
 	// 5. Create the assignment
@@ -129,6 +133,10 @@ func (s *AssignmentService) CreateAssignment(ctx context.Context, input CreateAs
 		AssignedBy: input.AssignedBy,
 	})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, model.ErrInvalidRequest(fmt.Sprintf("user is already assigned to role '%s' for this build", role.Name))
+		}
 		return nil, fmt.Errorf("failed to create assignment: %w", err)
 	}
 

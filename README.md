@@ -157,7 +157,7 @@ docker compose -f compose/docker-compose.yaml --project-directory compose \
 │   ├── repository/         # SQLC-generated DB layer (do not edit *.sql.go)
 │   ├── repository/queries/ # SQL source files — edit these, then run ./scripts/generate-repository.sh
 │   └── service/            # Business logic
-├── migrations/             # golang-migrate SQL files (21 migrations)
+├── migrations/             # golang-migrate SQL files (22 migrations)
 ├── docs/                   # API reference, contract validation, multi-key testing guide
 ├── Design/                 # High/low-level, security and deployment design documents
 ├── scripts/                # generate-repository.sh (SQLC generation)

@@ -191,6 +191,10 @@ func TestKeyPassphraseHTTP(t *testing.T) {
 	if err := json.Unmarshal(registered, &signing); err != nil {
 		t.Fatal(err)
 	}
+	t.Run("second signing key registration is rejected", func(t *testing.T) {
+		request(t, "/keys/signing", map[string]any{"mode": "generate", "passphrase": "Another!Signing2026"}, http.StatusConflict, "A signing key is already registered for this build.")
+		assertState(t, "SIGNING_KEY_REGISTERED", 1, 0, false)
+	})
 	execSQL("UPDATE builds SET status='ENVIRONMENT_STAGED' WHERE id=$1", buildID)
 	for _, role := range []string{"SOLUTION_PROVIDER", "DATA_OWNER"} {
 		encrypted, err := engine.EncryptString(ctx, "type: test\n", certPEM)
@@ -201,6 +205,10 @@ func TestKeyPassphraseHTTP(t *testing.T) {
 	}
 	request(t, "/keys/attestation", map[string]any{"mode": "generate", "passphrase": attestationPassphrase, "encryption_cert_pem": certPEM}, http.StatusCreated, "public_key")
 	assertState(t, "ATTESTATION_KEY_REGISTERED", 2, 0, true)
+	t.Run("second attestation key registration is rejected", func(t *testing.T) {
+		request(t, "/keys/attestation", map[string]any{"mode": "generate", "passphrase": "Another!Attest2026", "encryption_cert_pem": certPEM}, http.StatusConflict, "An attestation key is already registered for this build.")
+		assertState(t, "ATTESTATION_KEY_REGISTERED", 2, 0, true)
+	})
 	t.Run("failed finalization leaves build editable and retryable", func(t *testing.T) {
 		for _, tc := range []struct{ value, message string }{{"", "passphrase is required"}, {"Wrong!Passphrase2026", "Unable to unlock the signing key"}, {strings.TrimSpace(signingPassphrase), "Unable to unlock the signing key"}} {
 			request(t, "/finalize", map[string]any{"signing_key_passphrase": tc.value}, http.StatusBadRequest, tc.message)

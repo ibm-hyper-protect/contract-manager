@@ -9,14 +9,6 @@ INSERT INTO build_assignments (
 )
 RETURNING *;
 
--- name: GetBuildAssignmentByBuildAndRole :one
-SELECT ba.*, r.name as role_name, u.name as user_name, u.email as user_email
-FROM build_assignments ba
-JOIN roles r ON ba.role_id = r.id
-JOIN users u ON ba.user_id = u.id
-WHERE ba.build_id = $1 AND ba.role_id = $2
-LIMIT 1;
-
 -- name: GetBuildAssignmentsByBuildID :many
 SELECT ba.*, r.name as role_name, u.name as user_name, u.email as user_email
 FROM build_assignments ba
