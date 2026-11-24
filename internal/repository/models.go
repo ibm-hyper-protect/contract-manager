@@ -266,6 +266,48 @@ type BuildKeysPrivate struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
+type BuildSecretApproval struct {
+	BuildID          uuid.UUID       `json:"build_id"`
+	LogicalName      string          `json:"logical_name"`
+	VersionID        uuid.UUID       `json:"version_id"`
+	OwnerID          uuid.UUID       `json:"owner_id"`
+	TargetRevisionID uuid.UUID       `json:"target_revision_id"`
+	Consumer         string          `json:"consumer"`
+	SecretKind       string          `json:"secret_kind"`
+	SecretType       string          `json:"secret_type"`
+	Proof            json.RawMessage `json:"proof"`
+	CreatedAt        time.Time       `json:"created_at"`
+}
+
+type BuildSecretFlow struct {
+	BuildID          uuid.UUID       `json:"build_id"`
+	TargetRevisionID pgtype.UUID     `json:"target_revision_id"`
+	Revision         int32           `json:"revision"`
+	Requirements     json.RawMessage `json:"requirements"`
+	TargetApproval   []byte          `json:"target_approval"`
+	TargetEvidence   []byte          `json:"target_evidence"`
+	PreparedDigest   *string         `json:"prepared_digest"`
+	PreparedPayload  []byte          `json:"prepared_payload"`
+	PreparedBy       pgtype.UUID     `json:"prepared_by"`
+	Frozen           bool            `json:"frozen"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+}
+
+type BuildSecretSource struct {
+	ID              uuid.UUID   `json:"id"`
+	BuildID         uuid.UUID   `json:"build_id"`
+	SecretID        uuid.UUID   `json:"secret_id"`
+	VersionID       uuid.UUID   `json:"version_id"`
+	GroupRevisionID pgtype.UUID `json:"group_revision_id"`
+	AddedBy         uuid.UUID   `json:"added_by"`
+	AddedAt         time.Time   `json:"added_at"`
+}
+
+type BuildSecretSourceSet struct {
+	BuildID  uuid.UUID `json:"build_id"`
+	Revision int32     `json:"revision"`
+}
+
 type BuildSection struct {
 	ID               uuid.UUID `json:"id"`
 	BuildID          uuid.UUID `json:"build_id"`
@@ -281,6 +323,23 @@ type BuildSection struct {
 	RoleID pgtype.UUID `json:"role_id"`
 }
 
+type DeploymentTarget struct {
+	ID        uuid.UUID `json:"id"`
+	OwnerID   uuid.UUID `json:"owner_id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type DeploymentTargetRevision struct {
+	ID        uuid.UUID       `json:"id"`
+	TargetID  uuid.UUID       `json:"target_id"`
+	Revision  int32           `json:"revision"`
+	Manifest  json.RawMessage `json:"manifest"`
+	Digest    string          `json:"digest"`
+	CreatedBy uuid.UUID       `json:"created_by"`
+	CreatedAt time.Time       `json:"created_at"`
+}
+
 // Reference table for persona roles in the system
 type Role struct {
 	ID uuid.UUID `json:"id"`
@@ -289,6 +348,63 @@ type Role struct {
 	Description *string   `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type SecretCatalogObject struct {
+	ID          uuid.UUID `json:"id"`
+	Kind        string    `json:"kind"`
+	OwnerID     uuid.UUID `json:"owner_id"`
+	Alias       string    `json:"alias"`
+	Description string    `json:"description"`
+	Revision    int32     `json:"revision"`
+	Archived    bool      `json:"archived"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type SecretGroupMember struct {
+	GroupRevisionID uuid.UUID `json:"group_revision_id"`
+	VersionID       uuid.UUID `json:"version_id"`
+}
+
+type SecretGroupRevision struct {
+	ID        uuid.UUID `json:"id"`
+	GroupID   uuid.UUID `json:"group_id"`
+	Revision  int32     `json:"revision"`
+	CreatedBy uuid.UUID `json:"created_by"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type SecretPreparationJob struct {
+	ID             uuid.UUID          `json:"id"`
+	BuildID        uuid.UUID          `json:"build_id"`
+	ActorID        uuid.UUID          `json:"actor_id"`
+	ManifestDigest string             `json:"manifest_digest"`
+	State          string             `json:"state"`
+	ErrorCode      *string            `json:"error_code"`
+	CreatedAt      time.Time          `json:"created_at"`
+	FinishedAt     pgtype.Timestamptz `json:"finished_at"`
+}
+
+type SecretStoreEvent struct {
+	ID        int64           `json:"id"`
+	ActorID   uuid.UUID       `json:"actor_id"`
+	Action    string          `json:"action"`
+	ObjectID  pgtype.UUID     `json:"object_id"`
+	BuildID   pgtype.UUID     `json:"build_id"`
+	Details   json.RawMessage `json:"details"`
+	CreatedAt time.Time       `json:"created_at"`
+}
+
+type SecretStoreVersion struct {
+	ID            uuid.UUID `json:"id"`
+	SecretID      uuid.UUID `json:"secret_id"`
+	Version       int32     `json:"version"`
+	State         string    `json:"state"`
+	SealedPayload []byte    `json:"sealed_payload"`
+	ByteLength    *int32    `json:"byte_length"`
+	CreatedBy     uuid.UUID `json:"created_by"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type SystemLog struct {

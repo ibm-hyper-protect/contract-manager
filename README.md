@@ -2,6 +2,9 @@
 
 A persona-governed, cryptographically auditable contract lifecycle system for IBM Confidential Computing Container Runtime (CCRT) deployments.
 
+The optional [neutral Secret Store](docs/secret-store.md) supports encrypted values,
+personal versioned groups and build source preparation without sharing.
+
 ---
 
 ## Prerequisites
@@ -35,11 +38,12 @@ All configuration lives in `compose/.env`. Copy the example and fill in the requ
 cp compose/.env.example compose/.env
 ```
 
-Open `compose/.env` and set **at minimum** the four required fields (the compose file will refuse to start without them):
+Open `compose/.env` and set **at minimum** the following required fields (the compose file will refuse to start without them):
 
 ```bash
 # Required — pick strong unique values
 POSTGRES_PASSWORD=<strong-password>
+PGADMIN_DEFAULT_PASSWORD=<different-strong-password>
 ADMIN_NAME=System Admin
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=<strong-password>
@@ -156,7 +160,7 @@ docker compose -f compose/docker-compose.yaml --project-directory compose \
 │   ├── repository/         # SQLC-generated DB layer (do not edit *.sql.go)
 │   ├── repository/queries/ # SQL source files — edit these, then run ./scripts/generate-repository.sh
 │   └── service/            # Business logic
-├── migrations/             # golang-migrate SQL files (21 migrations)
+├── migrations/             # golang-migrate SQL files (25 migrations)
 ├── docs/                   # API reference, contract validation, multi-key testing guide
 ├── Design/                 # High/low-level, security and deployment design documents
 ├── scripts/                # generate-repository.sh (SQLC generation)
@@ -194,7 +198,7 @@ All variables are set in `compose/.env`. The table below lists those that **must
 | `ADMIN_PASSWORD` | ✅ | Initial password for the seeded admin account |
 | `DATABASE_URL` | ✅ | Full postgres DSN — must match `POSTGRES_*` values |
 | `MIGRATE_DATABASE_URL` | ✅ | Same DSN used by the migration runner |
-| `PGADMIN_DEFAULT_PASSWORD` | recommended | pgAdmin login password |
+| `PGADMIN_DEFAULT_PASSWORD` | ✅ when running pgAdmin | pgAdmin login password; no fallback password |
 
 > `DATABASE_URL` and `MIGRATE_DATABASE_URL` in `.env.example` use `${POSTGRES_*}` variable interpolation — if your shell or Docker Compose version does not expand these, set them explicitly as literal strings.
 
@@ -288,3 +292,5 @@ Authenticated clients can discover platform-specific versions using `GET /v2/enc
 
 
 Deploy this backend before releasing the paired UI validation change: the UI requires `POST /v2/contract-validate`. Existing unpinned builds cannot retrospectively verify the encryption recipient of older sections. No database migration is added by this change.
+
+The optional [runtime secret flow](docs/secret-flow.md) prepares signed owner-approved requests for an explicit deployment target; the Manager host is never selected implicitly.

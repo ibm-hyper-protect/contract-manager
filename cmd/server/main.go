@@ -39,35 +39,48 @@ import (
 	"github.com/ibm-hyper-protect/contract-manager/internal/middleware"
 	"github.com/ibm-hyper-protect/contract-manager/internal/model"
 	"github.com/ibm-hyper-protect/contract-manager/internal/repository"
+	"github.com/ibm-hyper-protect/contract-manager/internal/secretflow"
+	"github.com/ibm-hyper-protect/contract-manager/internal/secretstore"
 	"github.com/ibm-hyper-protect/contract-manager/internal/service"
 )
 
 func main() {
+	// Keep failures structured before the selected logger is available. Never
+	// include raw environment values or connection strings in startup errors.
+	setupLogger(&config.Config{LogLevel: "info", LogFormat: "json"})
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("failed to load config", "error", err)
+		var configErr *config.Error
+		if errors.As(err, &configErr) {
+			slog.Error("failed to load config", "code", configErr.Code, "variable", configErr.Variable, "hint", configErr.Message)
+		} else {
+			slog.Error("failed to load config", "code", "CONFIG_LOAD_FAILED")
+		}
 		os.Exit(1)
 	}
 	setupLogger(cfg)
+	if missing := cfg.IncompleteSSOFields(); len(missing) != 0 {
+		slog.Warn("SSO disabled because configuration is incomplete", "code", "SSO_CONFIGURATION_INCOMPLETE", "missing", missing, "hint", "set all four APPID_* settings, or omit all four to use local login")
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
-		slog.Error("failed to create database pool", "error", err)
+		slog.Error("failed to create database pool", "code", "DATABASE_CONFIG_FAILED", "hint", "check DATABASE_URL; connection details are omitted to protect credentials")
 		os.Exit(1)
 	}
 	defer pool.Close()
 	if err := pool.Ping(ctx); err != nil {
-		slog.Error("failed to connect to database", "error", err)
+		slog.Error("failed to connect to database", "code", "DATABASE_CONNECT_FAILED", "hint", "check database readiness, network access, credentials and TLS settings")
 		os.Exit(1)
 	}
 
 	queries := repository.New(pool)
 
 	if err := seedAdmin(ctx, pool, cfg.BcryptCost); err != nil {
-		slog.Error("failed to seed admin user", "error", err)
+		slog.Error("failed to seed admin user", "code", "ADMIN_SEED_FAILED", "hint", "apply the database migrations and check bootstrap configuration; existing accounts are not reset")
 		os.Exit(1)
 	}
 
@@ -77,6 +90,15 @@ func main() {
 
 	auditService := service.NewAuditService(queries)
 	systemLogService := service.NewSystemLogService(queries)
+	var secretVerifier secretstore.Verifier
+	if cfg.SecretStoreWorkerSocket != "" {
+		secretVerifier = secretstore.NewClient(cfg.SecretStoreWorkerSocket, cfg.SecretStoreImportKeyFingerprint)
+	}
+	secretService := service.NewSecretStoreService(pool, secretVerifier, systemLogService)
+	if cfg.SecretStoreWorkerSocket != "" {
+		secretService.WithProcessor(secretflow.NewClient(cfg.SecretStoreWorkerSocket, cfg.SecretStoreImportKeyFingerprint))
+	}
+	secretHandler := handler.NewSecretStoreHandler(secretService)
 	roleService := service.NewRoleService(queries)
 	rotationService := service.NewRotationService(queries)
 	verificationService := service.NewVerificationService(queries)
@@ -129,7 +151,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		if err := pool.Ping(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(`{"status":"unhealthy"}`))
+			w.Write([]byte(`{"status":"unhealthy","code":"DATABASE_UNAVAILABLE"}`))
 			return
 		}
 		w.Write([]byte(`{"status":"ok"}`))
@@ -149,6 +171,7 @@ func main() {
 		r.Use(middleware.RequireRequestSignature(userKeyService))
 
 		r.Post("/auth/logout", authHandler.Logout)
+		secretHandler.RegisterCatalogRoutes(r)
 		r.Get("/roles", roleHandler.ListRoles)
 
 		r.Route("/users", func(r chi.Router) {
@@ -201,6 +224,9 @@ func main() {
 				r.With(middleware.RequireRole(admin, auditor)).Post("/cancel", buildHandler.CancelBuild)
 
 				r.Get("/sections", contractHandler.ListSections)
+				secretHandler.RegisterFlowRoutes(r)
+				r.Get("/secret-sources", secretHandler.BuildSources)
+				r.With(middleware.RequireRole(admin, auditor, "SOLUTION_PROVIDER", "DATA_OWNER", "ENV_OPERATOR")).Put("/secret-sources", secretHandler.SetBuildSources)
 				r.Get("/audit", auditHandler.GetAuditTrail)
 				r.Get("/audit-trail", auditHandler.GetAuditTrail)
 
@@ -246,10 +272,12 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
+	serverFailed := make(chan struct{}, 1)
 	go func() {
 		slog.Info("server starting", "addr", cfg.Addr())
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("server failed", "error", err)
+			slog.Error("server failed", "code", "SERVER_LISTEN_FAILED", "hint", "check SERVER_HOST, SERVER_PORT and whether the address is already in use")
+			serverFailed <- struct{}{}
 			stop()
 		}
 	}()
@@ -259,7 +287,13 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		slog.Error("graceful shutdown failed", "error", err)
+		slog.Error("graceful shutdown failed", "code", "SERVER_SHUTDOWN_FAILED")
+		os.Exit(1)
+	}
+	select {
+	case <-serverFailed:
+		os.Exit(1)
+	default:
 	}
 }
 

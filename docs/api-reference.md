@@ -483,9 +483,15 @@ Auth required. Any authenticated user with build access.
 **Response `200`**
 ```json
 [
-  { "user_id": "uuid", "user_name": "Alice", "role": "AUDITOR", "assigned_at": "..." }
+  {
+    "id": "uuid", "build_id": "uuid", "role_id": "uuid", "user_id": "uuid",
+    "assigned_by": "uuid", "assigned_at": "...",
+    "role_name": "AUDITOR", "user_name": "Alice", "user_email": "alice@example.com"
+  }
 ]
 ```
+
+The list contains one entry per user and role, so a role with several assigned users appears several times.
 
 ---
 
@@ -499,6 +505,8 @@ Auth required. Role: `ADMIN` or `AUDITOR`. Build access required. Signature head
 ```
 
 **Response `201`** — assignment object.
+
+Several users can be assigned to the same role on one build by calling this endpoint once per user; any of them may perform that role's step. Assigning the same user to the same role twice returns `400 INVALID_REQUEST`.
 
 ---
 
@@ -579,6 +587,8 @@ Auth required. Role: `AUDITOR`. Build access required. Signature headers require
 
 Transitions build: `CREATED → SIGNING_KEY_REGISTERED`
 
+A build has one signing key. Once the build has left `CREATED`, another registration returns `409 SIGNING_KEY_ALREADY_REGISTERED`. The status check is not atomic: two registrations that overlap in time, or a retry after a failed first attempt, can both succeed and leave several active keys for one build. Finalization then uses the newest active key.
+
 ---
 
 ### `POST /builds/{id}/keys/attestation`
@@ -607,6 +617,8 @@ Auth required. Role: `AUDITOR`. Build access required. Signature headers require
 ```
 
 Transitions build: `ENVIRONMENT_STAGED → ATTESTATION_KEY_REGISTERED`
+
+A build has one attestation key. Once the build has reached `ATTESTATION_KEY_REGISTERED` or later, another registration returns `409 ATTESTATION_KEY_ALREADY_REGISTERED`. The status check is not atomic: two registrations that overlap in time, or a retry after a failed first attempt, can both succeed and leave several active keys for one build. Finalization then uses the newest active key.
 
 ---
 
@@ -997,3 +1009,12 @@ The environment signing key is inserted from the build's registered signing key.
 The current encryption format uses RSA PKCS#1 v1.5 to wrap a random password and OpenSSL AES-256-CBC/PBKDF2 for section data. Password randomness is Base64 encoded before OpenSSL's line-oriented input; binary ciphertext is never written through text helpers that trim whitespace. Temporary files are private and removed after the operation. The final workload/environment signature detects modifications; successful decryption alone does not authenticate a contract. UI submission sends plaintext to the backend, so production transport must use HTTPS.
 
 `GET /builds/{id}/sections` returns encrypted sections under the same build-access guard as the other build resources.
+
+## Secret Store extension
+
+See [Secret Store API and permissions](secret-store.md#api) for the catalog,
+encrypted import, personal groups and owner-scoped build preparation endpoints.
+
+### Runtime Secret Flow
+
+See [complete API, roles and failure codes](secret-flow.md#api) for build-scoped target profiles, owner approvals, preparation and public UV IDs. Every mutation uses the existing signed request protocol.

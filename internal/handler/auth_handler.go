@@ -116,7 +116,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // OIDCLogin handles GET /auth/oidc/login and returns the provider authorization URL.
 func (h *AuthHandler) OIDCLogin(w http.ResponseWriter, r *http.Request) {
 	if !h.oidcService.Enabled() {
-		writeError(w, model.ErrNotFound("SSO is not configured."))
+		writeError(w, model.ErrSSONotConfigured())
 		return
 	}
 
@@ -133,7 +133,7 @@ type oidcCallbackRequest struct {
 // OIDCCallback handles POST /auth/oidc/callback. The user must already exist and be active.
 func (h *AuthHandler) OIDCCallback(w http.ResponseWriter, r *http.Request) {
 	if !h.oidcService.Enabled() {
-		writeError(w, model.ErrNotFound("SSO is not configured."))
+		writeError(w, model.ErrSSONotConfigured())
 		return
 	}
 

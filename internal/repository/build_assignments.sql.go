@@ -80,49 +80,6 @@ func (q *Queries) DeleteBuildAssignmentsByBuildID(ctx context.Context, buildID u
 	return err
 }
 
-const getBuildAssignmentByBuildAndRole = `-- name: GetBuildAssignmentByBuildAndRole :one
-SELECT ba.id, ba.build_id, ba.role_id, ba.user_id, ba.assigned_by, ba.assigned_at, r.name as role_name, u.name as user_name, u.email as user_email
-FROM build_assignments ba
-JOIN roles r ON ba.role_id = r.id
-JOIN users u ON ba.user_id = u.id
-WHERE ba.build_id = $1 AND ba.role_id = $2
-LIMIT 1
-`
-
-type GetBuildAssignmentByBuildAndRoleParams struct {
-	BuildID uuid.UUID `json:"build_id"`
-	RoleID  uuid.UUID `json:"role_id"`
-}
-
-type GetBuildAssignmentByBuildAndRoleRow struct {
-	ID         uuid.UUID `json:"id"`
-	BuildID    uuid.UUID `json:"build_id"`
-	RoleID     uuid.UUID `json:"role_id"`
-	UserID     uuid.UUID `json:"user_id"`
-	AssignedBy uuid.UUID `json:"assigned_by"`
-	AssignedAt time.Time `json:"assigned_at"`
-	RoleName   string    `json:"role_name"`
-	UserName   string    `json:"user_name"`
-	UserEmail  string    `json:"user_email"`
-}
-
-func (q *Queries) GetBuildAssignmentByBuildAndRole(ctx context.Context, arg GetBuildAssignmentByBuildAndRoleParams) (GetBuildAssignmentByBuildAndRoleRow, error) {
-	row := q.db.QueryRow(ctx, getBuildAssignmentByBuildAndRole, arg.BuildID, arg.RoleID)
-	var i GetBuildAssignmentByBuildAndRoleRow
-	err := row.Scan(
-		&i.ID,
-		&i.BuildID,
-		&i.RoleID,
-		&i.UserID,
-		&i.AssignedBy,
-		&i.AssignedAt,
-		&i.RoleName,
-		&i.UserName,
-		&i.UserEmail,
-	)
-	return i, err
-}
-
 const getBuildAssignmentsByBuildID = `-- name: GetBuildAssignmentsByBuildID :many
 SELECT ba.id, ba.build_id, ba.role_id, ba.user_id, ba.assigned_by, ba.assigned_at, r.name as role_name, u.name as user_name, u.email as user_email
 FROM build_assignments ba

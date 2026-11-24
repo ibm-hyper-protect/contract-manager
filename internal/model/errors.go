@@ -52,6 +52,10 @@ func ErrNotFound(msg string) *AppError {
 	return &AppError{Code: "NOT_FOUND", Message: msg, HTTPStatus: http.StatusNotFound}
 }
 
+func ErrSSONotConfigured() *AppError {
+	return &AppError{Code: "SSO_NOT_CONFIGURED", Message: "SSO is not configured. Set all four APPID_* settings or use local login.", HTTPStatus: http.StatusNotFound}
+}
+
 func ErrBuildNotFound(id string) *AppError {
 	return &AppError{
 		Code:       "BUILD_NOT_FOUND",
@@ -113,6 +117,16 @@ func ErrKeyLimitReached() *AppError {
 // ErrKeyAlreadyRegistered reports a fingerprint that already exists in key history.
 func ErrKeyAlreadyRegistered() *AppError {
 	return &AppError{Code: "KEY_ALREADY_REGISTERED", Message: "This public key has already been registered.", HTTPStatus: http.StatusConflict}
+}
+
+// ErrSigningKeyAlreadyRegistered reports a second signing key registration for a build.
+func ErrSigningKeyAlreadyRegistered() *AppError {
+	return &AppError{Code: "SIGNING_KEY_ALREADY_REGISTERED", Message: "A signing key is already registered for this build.", HTTPStatus: http.StatusConflict}
+}
+
+// ErrAttestationKeyAlreadyRegistered reports a second attestation key registration for a build.
+func ErrAttestationKeyAlreadyRegistered() *AppError {
+	return &AppError{Code: "ATTESTATION_KEY_ALREADY_REGISTERED", Message: "An attestation key is already registered for this build.", HTTPStatus: http.StatusConflict}
 }
 
 // ErrKeyNotFound reports an unknown, foreign, or already revoked identity key.

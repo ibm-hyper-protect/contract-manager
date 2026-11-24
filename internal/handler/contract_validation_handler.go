@@ -28,12 +28,16 @@ func (h *ContractHandler) ValidateContract(w http.ResponseWriter, r *http.Reques
 	var req struct {
 		Plaintext string `json:"plaintext"`
 		Section   string `json:"section"`
+		Platform  string `json:"platform"`
 	}
 	if err := readJSONLarge(r, &req, 50<<20); err != nil {
 		writeError(w, model.ErrInvalidRequest(err.Error()))
 		return
 	}
-	section, err := validation.Validate(req.Plaintext, req.Section)
+	if req.Platform == "" {
+		req.Platform = "ccrt"
+	}
+	section, err := validation.ValidateForProfile(req.Plaintext, req.Section, req.Platform)
 	if err != nil {
 		writeError(w, model.ErrInvalidRequest(err.Error()))
 		return
@@ -43,5 +47,5 @@ func (h *ContractHandler) ValidateContract(w http.ResponseWriter, r *http.Reques
 		writeError(w, model.ErrInternal("Failed to encode validated YAML."))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"valid": true, "section": req.Section, "platform": "ccrt", "plaintext": plaintext})
+	writeJSON(w, http.StatusOK, map[string]any{"valid": true, "section": req.Section, "platform": req.Platform, "plaintext": plaintext})
 }

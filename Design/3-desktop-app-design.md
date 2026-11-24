@@ -397,6 +397,7 @@ Downloaded and cancelled builds are treated as terminal/completed in list and ho
 - pagination on both tables
 - admin-only create build modal with mandatory role assignment
 - assignment dropdowns are role-driven (users appear when they hold the target workflow role)
+- each role uses a multi-select, so several users (e.g. two auditors) can be assigned to one role; at least one user per role is required
 - multi-role users can be assigned to multiple workflow personas in the same build
 - readiness filtering for assignees (active + setup complete + key registered)
 - toolbar actions include scoped icon-only filter/menu controls and explicit export button action
