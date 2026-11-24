@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
@@ -13,6 +14,8 @@ import (
 
 // Config holds all configuration values for the backend server.
 type Config struct {
+	SecretStoreWorkerSocket         string
+	SecretStoreImportKeyFingerprint string
 	// Server
 	ServerHost string
 	ServerPort int
@@ -52,14 +55,16 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	cfg := &Config{
-		ServerHost:     getEnv("SERVER_HOST", "0.0.0.0"),
-		ServerPort:     getEnvInt("SERVER_PORT", 8080),
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		TokenExpiry:    getEnvDuration("TOKEN_EXPIRY", 24*time.Hour),
-		BcryptCost:     getEnvInt("BCRYPT_COST", 12),
-		LogLevel:       getEnv("LOG_LEVEL", "info"),
-		LogFormat:      getEnv("LOG_FORMAT", "json"),
-		MaxPayloadSize: getEnvInt64("MAX_PAYLOAD_SIZE", 52428800), // 50MB
+		SecretStoreWorkerSocket:         os.Getenv("SECRET_STORE_WORKER_SOCKET"),
+		SecretStoreImportKeyFingerprint: os.Getenv("SECRET_STORE_IMPORT_KEY_FINGERPRINT"),
+		ServerHost:                      getEnv("SERVER_HOST", "0.0.0.0"),
+		ServerPort:                      getEnvInt("SERVER_PORT", 8080),
+		DatabaseURL:                     os.Getenv("DATABASE_URL"),
+		TokenExpiry:                     getEnvDuration("TOKEN_EXPIRY", 24*time.Hour),
+		BcryptCost:                      getEnvInt("BCRYPT_COST", 12),
+		LogLevel:                        getEnv("LOG_LEVEL", "info"),
+		LogFormat:                       getEnv("LOG_FORMAT", "json"),
+		MaxPayloadSize:                  getEnvInt64("MAX_PAYLOAD_SIZE", 52428800), // 50MB
 		CORSAllowedOrigins: splitAndTrim(getEnv(
 			"CORS_ALLOWED_ORIGINS",
 			"http://localhost:5173,http://127.0.0.1:5173,null",
@@ -71,6 +76,13 @@ func Load() (*Config, error) {
 		AppIDClientSecret:   os.Getenv("APPID_CLIENT_SECRET"),
 		AppIDOAuthServerURL: os.Getenv("APPID_OAUTH_SERVER_URL"),
 		AppIDRedirectURI:    os.Getenv("APPID_REDIRECT_URI"),
+	}
+
+	if cfg.SecretStoreWorkerSocket != "" {
+		pin, err := hex.DecodeString(cfg.SecretStoreImportKeyFingerprint)
+		if err != nil || len(pin) != 32 || strings.ToLower(cfg.SecretStoreImportKeyFingerprint) != cfg.SecretStoreImportKeyFingerprint {
+			return nil, invalid("SECRET_STORE_IMPORT_KEY_FINGERPRINT", "must pin the worker SHA-256 public key fingerprint using 64 lowercase hex characters")
+		}
 	}
 
 	return cfg, nil

@@ -39,6 +39,8 @@ import (
 	"github.com/ibm-hyper-protect/contract-manager/internal/middleware"
 	"github.com/ibm-hyper-protect/contract-manager/internal/model"
 	"github.com/ibm-hyper-protect/contract-manager/internal/repository"
+	"github.com/ibm-hyper-protect/contract-manager/internal/secretflow"
+	"github.com/ibm-hyper-protect/contract-manager/internal/secretstore"
 	"github.com/ibm-hyper-protect/contract-manager/internal/service"
 )
 
@@ -88,6 +90,15 @@ func main() {
 
 	auditService := service.NewAuditService(queries)
 	systemLogService := service.NewSystemLogService(queries)
+	var secretVerifier secretstore.Verifier
+	if cfg.SecretStoreWorkerSocket != "" {
+		secretVerifier = secretstore.NewClient(cfg.SecretStoreWorkerSocket, cfg.SecretStoreImportKeyFingerprint)
+	}
+	secretService := service.NewSecretStoreService(pool, secretVerifier, systemLogService)
+	if cfg.SecretStoreWorkerSocket != "" {
+		secretService.WithProcessor(secretflow.NewClient(cfg.SecretStoreWorkerSocket, cfg.SecretStoreImportKeyFingerprint))
+	}
+	secretHandler := handler.NewSecretStoreHandler(secretService)
 	roleService := service.NewRoleService(queries)
 	rotationService := service.NewRotationService(queries)
 	verificationService := service.NewVerificationService(queries)
@@ -160,6 +171,7 @@ func main() {
 		r.Use(middleware.RequireRequestSignature(userKeyService))
 
 		r.Post("/auth/logout", authHandler.Logout)
+		secretHandler.RegisterCatalogRoutes(r)
 		r.Get("/roles", roleHandler.ListRoles)
 
 		r.Route("/users", func(r chi.Router) {
@@ -212,6 +224,9 @@ func main() {
 				r.With(middleware.RequireRole(admin, auditor)).Post("/cancel", buildHandler.CancelBuild)
 
 				r.Get("/sections", contractHandler.ListSections)
+				secretHandler.RegisterFlowRoutes(r)
+				r.Get("/secret-sources", secretHandler.BuildSources)
+				r.With(middleware.RequireRole(admin, auditor, "SOLUTION_PROVIDER", "DATA_OWNER", "ENV_OPERATOR")).Put("/secret-sources", secretHandler.SetBuildSources)
 				r.Get("/audit", auditHandler.GetAuditTrail)
 				r.Get("/audit-trail", auditHandler.GetAuditTrail)
 

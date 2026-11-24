@@ -41,6 +41,19 @@ var ccrtSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
 	return compiler.Compile(location)
 })
 
+var ccrvSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
+	resource, err := jsonschema.UnmarshalJSON(strings.NewReader(contractschema.ContractSchemaCcrv))
+	if err != nil {
+		return nil, err
+	}
+	compiler := jsonschema.NewCompiler()
+	const location = "https://contract-manager.local/schema/ccrv.json"
+	if err := compiler.AddResource(location, resource); err != nil {
+		return nil, err
+	}
+	return compiler.Compile(location)
+})
+
 // ParseMapping rejects duplicate keys, multiple documents, scalar roots and
 // non-string YAML map keys. JSON conversion also normalizes numbers for the schema.
 func ParseMapping(text string) (map[string]any, error) {
@@ -100,6 +113,10 @@ func sectionMap(value any, kind string) (map[string]any, error) {
 // input is always checked as a pair, even when only one section is requested.
 // An env section's nested env map is environment variables, not a contract wrapper.
 func Validate(text, kind string) (map[string]any, error) {
+	return ValidateForProfile(text, kind, "ccrt")
+}
+
+func ValidateForProfile(text, kind, profile string) (map[string]any, error) {
 	if kind != "" && kind != "workload" && kind != "env" {
 		return nil, fmt.Errorf("section must be workload, env or empty for both")
 	}
@@ -130,6 +147,11 @@ func Validate(text, kind string) (map[string]any, error) {
 		}
 	}
 	schema, err := ccrtSchema()
+	if profile == "ccrv" {
+		schema, err = ccrvSchema()
+	} else if profile != "ccrt" {
+		return nil, fmt.Errorf("unsupported contract profile")
+	}
 	if err != nil {
 		return nil, fmt.Errorf("load contract schema: %w", err)
 	}

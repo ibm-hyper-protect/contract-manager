@@ -12,18 +12,44 @@ import (
 )
 
 type Querier interface {
+	AddBuildSecretApproval(ctx context.Context, arg AddBuildSecretApprovalParams) error
+	AddBuildSecretSource(ctx context.Context, arg AddBuildSecretSourceParams) error
+	AddSecretGroupMember(ctx context.Context, arg AddSecretGroupMemberParams) error
 	AdminResetPassword(ctx context.Context, arg AdminResetPasswordParams) error
+	ApproveBuildSecretTarget(ctx context.Context, arg ApproveBuildSecretTargetParams) error
 	AssignRole(ctx context.Context, arg AssignRoleParams) (UserRole, error)
+	BuildRequiresSecretFlow(ctx context.Context, buildID uuid.UUID) (*bool, error)
+	BumpSecretSourceRevision(ctx context.Context, buildID uuid.UUID) error
 	CheckUserAssignedToBuild(ctx context.Context, arg CheckUserAssignedToBuildParams) (bool, error)
 	CountActiveUserPublicKeys(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountAllUserPublicKeys(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountAuditEventsByBuildID(ctx context.Context, buildID pgtype.UUID) (int64, error)
+	CountBuildSecretSources(ctx context.Context, buildID uuid.UUID) (int64, error)
 	CountBuilds(ctx context.Context, status *BuildStatus) (int64, error)
 	CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) (CreateAPITokenRow, error)
 	CreateAuditEvent(ctx context.Context, arg CreateAuditEventParams) (CreateAuditEventRow, error)
 	CreateBuild(ctx context.Context, arg CreateBuildParams) (CreateBuildRow, error)
 	CreateBuildAssignment(ctx context.Context, arg CreateBuildAssignmentParams) (BuildAssignment, error)
 	CreateBuildSection(ctx context.Context, arg CreateBuildSectionParams) (CreateBuildSectionRow, error)
+	// Copyright (c) 2026 IBM Corp.
+	// All rights reserved.
+	//
+	// Licensed under the Apache License, Version 2.0 (the "License");
+	// you may not use this file except in compliance with the License.
+	// You may obtain a copy of the License at
+	//
+	// http://www.apache.org/licenses/LICENSE-2.0
+	//
+	// Unless required by applicable law or agreed to in writing, software
+	// distributed under the License is distributed on an "AS IS" BASIS,
+	// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	// See the License for the specific language governing permissions and
+	// limitations under the License.
+	CreateDeploymentTarget(ctx context.Context, arg CreateDeploymentTargetParams) (DeploymentTarget, error)
+	CreateDeploymentTargetRevision(ctx context.Context, arg CreateDeploymentTargetRevisionParams) (DeploymentTargetRevision, error)
+	CreateSecretGroupRevision(ctx context.Context, arg CreateSecretGroupRevisionParams) (SecretGroupRevision, error)
+	CreateSecretObject(ctx context.Context, arg CreateSecretObjectParams) (SecretCatalogObject, error)
+	CreateSecretPreparationJob(ctx context.Context, arg CreateSecretPreparationJobParams) (SecretPreparationJob, error)
 	CreateSystemLog(ctx context.Context, arg CreateSystemLogParams) (SystemLog, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	// Copyright (c) 2026 IBM Corp.
@@ -44,45 +70,95 @@ type Querier interface {
 	DeactivateUser(ctx context.Context, id uuid.UUID) error
 	DeleteBuildAssignmentsByBuildID(ctx context.Context, buildID uuid.UUID) error
 	DeleteBuildKeyPrivate(ctx context.Context, keyID uuid.UUID) error
+	DeleteBuildSecretApprovals(ctx context.Context, buildID uuid.UUID) error
+	DeleteBuildSecretSources(ctx context.Context, arg DeleteBuildSecretSourcesParams) error
+	DeletePersonalSecretApprovals(ctx context.Context, arg DeletePersonalSecretApprovalsParams) error
 	DeleteRolesByUserID(ctx context.Context, userID uuid.UUID) error
 	EnsureBuildEncryptionCertificate(ctx context.Context, arg EnsureBuildEncryptionCertificateParams) (int64, error)
 	FinalizeBuild(ctx context.Context, arg FinalizeBuildParams) error
+	FinishSecretPreparationJob(ctx context.Context, arg FinishSecretPreparationJobParams) error
 	ForcePasswordChange(ctx context.Context, id uuid.UUID) error
+	FreezeSecretPreparation(ctx context.Context, buildID uuid.UUID) error
 	GetAPITokenByHash(ctx context.Context, tokenHash string) (ApiToken, error)
 	GetAuditEventsByBuildID(ctx context.Context, buildID pgtype.UUID) ([]GetAuditEventsByBuildIDRow, error)
 	GetBuildAssignmentsByBuildID(ctx context.Context, buildID uuid.UUID) ([]GetBuildAssignmentsByBuildIDRow, error)
 	GetBuildAssignmentsByUserID(ctx context.Context, userID uuid.UUID) ([]GetBuildAssignmentsByUserIDRow, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (GetBuildByIDRow, error)
 	GetBuildKeyPrivate(ctx context.Context, keyID uuid.UUID) (BuildKeysPrivate, error)
+	GetBuildSecretFlow(ctx context.Context, buildID uuid.UUID) (BuildSecretFlow, error)
 	GetBuildSectionByRole(ctx context.Context, arg GetBuildSectionByRoleParams) (GetBuildSectionByRoleRow, error)
 	GetBuildSectionByRoleID(ctx context.Context, arg GetBuildSectionByRoleIDParams) (GetBuildSectionByRoleIDRow, error)
 	GetBuildSectionsByBuildID(ctx context.Context, buildID uuid.UUID) ([]GetBuildSectionsByBuildIDRow, error)
+	GetDeploymentTargetRevision(ctx context.Context, id uuid.UUID) (DeploymentTargetRevision, error)
 	GetLatestAuditEvent(ctx context.Context, buildID pgtype.UUID) (GetLatestAuditEventRow, error)
 	GetRoleByID(ctx context.Context, id uuid.UUID) (Role, error)
 	GetRoleByName(ctx context.Context, name string) (Role, error)
 	GetRolesByUserID(ctx context.Context, userID uuid.UUID) ([]UserRole, error)
+	GetSealedSecretPayload(ctx context.Context, id uuid.UUID) ([]byte, error)
+	GetSecretGroupRevision(ctx context.Context, id uuid.UUID) (SecretGroupRevision, error)
+	GetSecretObject(ctx context.Context, id uuid.UUID) (SecretCatalogObject, error)
+	GetSecretSourceRevision(ctx context.Context, buildID uuid.UUID) (int32, error)
+	GetSecretVersion(ctx context.Context, id uuid.UUID) (GetSecretVersionRow, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
 	GetUsersWithExpiredPasswords(ctx context.Context) ([]GetUsersWithExpiredPasswordsRow, error)
+	InitBuildSecretFlow(ctx context.Context, buildID uuid.UUID) error
+	InitSecretSourceSet(ctx context.Context, buildID uuid.UUID) error
+	InvalidateSecretPreparation(ctx context.Context, buildID uuid.UUID) error
 	ListAPITokensByUserID(ctx context.Context, userID uuid.UUID) ([]ListAPITokensByUserIDRow, error)
 	// Recheck expiry after acquiring the user lock; NOW() is fixed at transaction start.
 	ListActiveUserPublicKeys(ctx context.Context, userID uuid.UUID) ([]UserPublicKey, error)
+	ListBuildSecretApprovalDetails(ctx context.Context, buildID uuid.UUID) ([]ListBuildSecretApprovalDetailsRow, error)
+	ListBuildSecretApprovals(ctx context.Context, buildID uuid.UUID) ([]BuildSecretApproval, error)
+	ListBuildSecretSources(ctx context.Context, arg ListBuildSecretSourcesParams) ([]ListBuildSecretSourcesRow, error)
 	ListBuilds(ctx context.Context, arg ListBuildsParams) ([]ListBuildsRow, error)
 	ListExpiredUserPublicKeys(ctx context.Context) ([]ListExpiredUserPublicKeysRow, error)
+	ListPersonalDeploymentTargets(ctx context.Context, ownerID uuid.UUID) ([]ListPersonalDeploymentTargetsRow, error)
 	ListRoles(ctx context.Context) ([]Role, error)
+	ListSecretGroupMembers(ctx context.Context, groupRevisionID uuid.UUID) ([]ListSecretGroupMembersRow, error)
+	ListSecretGroupRevisions(ctx context.Context, groupID uuid.UUID) ([]SecretGroupRevision, error)
+	ListSecretObjects(ctx context.Context, arg ListSecretObjectsParams) ([]ListSecretObjectsRow, error)
+	ListSecretVersions(ctx context.Context, secretID uuid.UUID) ([]ListSecretVersionsRow, error)
 	ListSystemLogs(ctx context.Context, arg ListSystemLogsParams) ([]SystemLog, error)
 	ListUserPublicKeys(ctx context.Context, userID uuid.UUID) ([]UserPublicKey, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
 	ListUsersWithoutActiveKey(ctx context.Context) ([]ListUsersWithoutActiveKeyRow, error)
+	LockSecretApprovalKeys(ctx context.Context, userID uuid.UUID) ([]UserPublicKey, error)
+	LockSecretApprovalRoles(ctx context.Context, userID uuid.UUID) ([]string, error)
+	LockSecretApprovalUser(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	LockSecretBuild(ctx context.Context, id uuid.UUID) (LockSecretBuildRow, error)
+	LockSecretBuildAssignments(ctx context.Context, arg LockSecretBuildAssignmentsParams) ([]LockSecretBuildAssignmentsRow, error)
+	// Copyright (c) 2026 IBM Corp.
+	// All rights reserved.
+	//
+	// Licensed under the Apache License, Version 2.0 (the "License");
+	// you may not use this file except in compliance with the License.
+	// You may obtain a copy of the License at
+	//
+	// http://www.apache.org/licenses/LICENSE-2.0
+	//
+	// Unless required by applicable law or agreed to in writing, software
+	// distributed under the License is distributed on an "AS IS" BASIS,
+	// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	// See the License for the specific language governing permissions and
+	// limitations under the License.
+	LockSecretCatalog(ctx context.Context) error
 	LockUserForKeyChange(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	ReactivateUser(ctx context.Context, id uuid.UUID) error
+	RecordSecretEvent(ctx context.Context, arg RecordSecretEventParams) error
+	ReserveSecretVersion(ctx context.Context, arg ReserveSecretVersionParams) (ReserveSecretVersionRow, error)
 	RevokeAPIToken(ctx context.Context, arg RevokeAPITokenParams) error
 	RevokeAllUserPublicKeys(ctx context.Context, arg RevokeAllUserPublicKeysParams) (int64, error)
 	RevokeExpiredUserPublicKeys(ctx context.Context, arg RevokeExpiredUserPublicKeysParams) (int64, error)
 	RevokeUserPublicKey(ctx context.Context, arg RevokeUserPublicKeyParams) (int64, error)
+	SavePreparedSecretRequests(ctx context.Context, arg SavePreparedSecretRequestsParams) error
+	SealSecretVersion(ctx context.Context, arg SealSecretVersionParams) (int64, error)
+	SetBuildSecretRequirements(ctx context.Context, arg SetBuildSecretRequirementsParams) error
+	SetBuildSecretTarget(ctx context.Context, arg SetBuildSecretTargetParams) error
 	StoreBuildKeyPrivate(ctx context.Context, arg StoreBuildKeyPrivateParams) error
 	UpdateBuildStatus(ctx context.Context, arg UpdateBuildStatusParams) error
 	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error
+	UpdateSecretObject(ctx context.Context, arg UpdateSecretObjectParams) (SecretCatalogObject, error)
 	UpdateTokenLastUsed(ctx context.Context, id uuid.UUID) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error)
 }

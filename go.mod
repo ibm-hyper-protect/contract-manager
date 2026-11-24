@@ -22,3 +22,5 @@ require (
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
 )
+
+replace github.com/ibm-hyper-protect/contract-go/v3 => github.com/niklasladehoff/contract-go/v3 v3.5.1-0.20261118141503-2df57ea38fa4

@@ -1009,3 +1009,12 @@ The environment signing key is inserted from the build's registered signing key.
 The current encryption format uses RSA PKCS#1 v1.5 to wrap a random password and OpenSSL AES-256-CBC/PBKDF2 for section data. Password randomness is Base64 encoded before OpenSSL's line-oriented input; binary ciphertext is never written through text helpers that trim whitespace. Temporary files are private and removed after the operation. The final workload/environment signature detects modifications; successful decryption alone does not authenticate a contract. UI submission sends plaintext to the backend, so production transport must use HTTPS.
 
 `GET /builds/{id}/sections` returns encrypted sections under the same build-access guard as the other build resources.
+
+## Secret Store extension
+
+See [Secret Store API and permissions](secret-store.md#api) for the catalog,
+encrypted import, personal groups and owner-scoped build preparation endpoints.
+
+### Runtime Secret Flow
+
+See [complete API, roles and failure codes](secret-flow.md#api) for build-scoped target profiles, owner approvals, preparation and public UV IDs. Every mutation uses the existing signed request protocol.

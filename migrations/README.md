@@ -1,4 +1,13 @@
+Migration `024_personal_secret_store` removes historical sharing grants without
+changing encrypted values, personal groups or pinned build references. Its rollback
+recreates only the empty legacy table; it never restores permissions.
+
 # Database Migrations
+
+Migration `023_create_secret_store` adds the neutral encrypted catalog, immutable
+versions, group revisions, grants, build source references and metadata audit
+events. See [Secret Store](../docs/secret-store.md). Rolling it back permanently
+removes that catalog data; back up the database and external wrapping key first.
 
 This directory contains PostgreSQL migration files for the IBM Confidential Computing Contract Generator backend.
 
@@ -153,3 +162,5 @@ done
 - Foreign key constraints ensure referential integrity
 - Indexes are created for frequently queried columns
 - Comments are added to document column purposes
+
+- `025_secret_preparation_flow` adds immutable public target revisions, signed owner approvals, preparation jobs and frozen build manifests. Apply after 024 before enabling the Secret Flow UI.

@@ -32,7 +32,8 @@ type submitWorkloadV2Request struct {
 }
 
 type contractTemplateRequest struct {
-	Type string `json:"type"`
+	Type     string `json:"type"`
+	Platform string `json:"platform"`
 }
 
 // GetContractTemplate handles POST /contract-template.
@@ -44,7 +45,7 @@ func (h *ContractHandler) GetContractTemplate(w http.ResponseWriter, r *http.Req
 		return
 	}
 	templateType := strings.TrimSpace(req.Type)
-	resolvedType, content, err := h.contractService.GetContractTemplate(r.Context(), templateType)
+	resolvedType, content, err := h.contractService.GetContractTemplateForProfile(r.Context(), templateType, req.Platform)
 	if err != nil {
 		if appErr, ok := err.(*model.AppError); ok {
 			writeError(w, appErr)

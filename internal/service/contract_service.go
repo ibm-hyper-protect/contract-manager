@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	contractengine "github.com/ibm-hyper-protect/contract-manager/internal/contract"
@@ -18,6 +19,7 @@ import (
 // ContractService owns backend-native section encryption and finalization logic.
 type ContractService struct {
 	queries           repository.Querier
+	db                repository.DBTX
 	buildService      *BuildService
 	assignmentService *AssignmentService
 	keyService        *KeyService
@@ -43,6 +45,7 @@ func NewContractService(
 ) *ContractService {
 	return &ContractService{
 		queries:           queries,
+		db:                db,
 		buildService:      buildService,
 		assignmentService: assignmentService,
 		keyService:        keyService,
@@ -99,6 +102,15 @@ func (s *ContractService) SubmitWorkloadSection(ctx context.Context, in SubmitSe
 	if err := s.assignmentService.ValidateAssignmentForSubmission(ctx, in.BuildID, in.ActorID, model.RoleSolutionProvider.String()); err != nil {
 		return nil, err
 	}
+	job, _, err := s.preparedForSection(ctx, in.BuildID, in.CertificatePEM)
+	if err != nil {
+		return nil, err
+	}
+	profile := "ccrt"
+	if job.BuildID != uuid.Nil {
+		profile = "ccrv"
+	}
+
 	if strings.TrimSpace(in.Plaintext) == "" {
 		return nil, model.ErrInvalidRequest("plaintext workload is required")
 	}
@@ -106,7 +118,7 @@ func (s *ContractService) SubmitWorkloadSection(ctx context.Context, in SubmitSe
 		return nil, model.ErrInvalidRequest("certificate PEM is required")
 	}
 
-	sectionData, err := validation.Validate(in.Plaintext, "workload")
+	sectionData, err := validation.ValidateForProfile(in.Plaintext, "workload", profile)
 	if err != nil {
 		return nil, model.ErrInvalidRequest(err.Error())
 	}
@@ -125,6 +137,7 @@ func (s *ContractService) SubmitWorkloadSection(ctx context.Context, in SubmitSe
 	signature := valueOrEmpty(in.RequestSignature)
 
 	return s.submitSection(ctx, submitSectionParams{
+		secretDigest:         job.Digest,
 		buildID:              in.BuildID,
 		personaRole:          model.RoleSolutionProvider,
 		submittedBy:          in.ActorID,
@@ -151,6 +164,15 @@ func (s *ContractService) SubmitEnvironmentSection(ctx context.Context, in Submi
 		return nil, model.ErrInvalidRequest("certificate PEM is required")
 	}
 
+	job, prepared, err := s.preparedForSection(ctx, in.BuildID, in.CertificatePEM)
+	if err != nil {
+		return nil, err
+	}
+	profile := "ccrt"
+	if job.BuildID != uuid.Nil {
+		profile = "ccrv"
+	}
+
 	signingKey, err := s.store.getLatestActiveBuildKeyByType(ctx, in.BuildID, model.BuildKeyTypeSigning)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no rows") {
@@ -159,9 +181,16 @@ func (s *ContractService) SubmitEnvironmentSection(ctx context.Context, in Submi
 		return nil, fmt.Errorf("failed to load signing key for environment section: %w", err)
 	}
 
-	envPayload, err := ensureEnvironmentHasSigningKey(in.Plaintext, signingKey.PublicKey)
+	envPayload, err := ensureEnvironmentHasSigningKeyForProfile(in.Plaintext, signingKey.PublicKey, profile)
 	if err != nil {
 		return nil, model.ErrInvalidRequest(err.Error())
+	}
+
+	if job.BuildID != uuid.Nil {
+		envPayload, err = environmentWithPrepared(envPayload, job, prepared)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	encryptedPayload, err := s.engine.EncryptString(ctx, envPayload, in.CertificatePEM)
@@ -175,6 +204,7 @@ func (s *ContractService) SubmitEnvironmentSection(ctx context.Context, in Submi
 	signature := valueOrEmpty(in.RequestSignature)
 
 	return s.submitSection(ctx, submitSectionParams{
+		secretDigest:         job.Digest,
 		buildID:              in.BuildID,
 		personaRole:          model.RoleDataOwner,
 		submittedBy:          in.ActorID,
@@ -192,6 +222,7 @@ func (s *ContractService) SubmitEnvironmentSection(ctx context.Context, in Submi
 
 // submitSectionParams carries the arguments for the internal section storage helper.
 type submitSectionParams struct {
+	secretDigest         string
 	buildID              uuid.UUID
 	personaRole          model.PersonaRole
 	submittedBy          uuid.UUID
@@ -208,23 +239,66 @@ type submitSectionParams struct {
 
 // submitSection validates build state, checks for duplicates, inserts the section, and auto-transitions status.
 func (s *ContractService) submitSection(ctx context.Context, p submitSectionParams) (*repository.BuildSection, error) {
+	// Serialize source preparation and section submission on the build row.
+	beginner, ok := s.db.(interface {
+		Begin(context.Context) (pgx.Tx, error)
+	})
+	if !ok {
+		return nil, model.ErrInternal("Database transactions are required for section submission.")
+	}
+	tx, err := beginner.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin section transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	q := repository.New(tx)
 	// Validate build is in the required state for this role's submission.
-	build, err := s.queries.GetBuildByID(ctx, p.buildID)
+	build, err := q.LockSecretBuild(ctx, p.buildID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get build: %w", err)
+	}
+	if err = flowRole(ctx, q, SecretActor{ID: p.submittedBy, Roles: p.actorRoles}, p.buildID, p.personaRole.String()); err != nil {
+		return nil, err
 	}
 	if model.BuildStatus(build.Status) != p.requiredStatus {
 		return nil, model.ErrInvalidStateTransition(build.Status, p.requiredStatus.String())
 	}
 
+	current, _, err := validatePrepared(ctx, q, p.buildID)
+	if err != nil {
+		return nil, flowDomain(err)
+	}
+	if current.Digest != p.secretDigest {
+		return nil, secretConflict()
+	}
+	if p.nextStatus == model.StatusWorkloadSubmitted && current.BuildID != uuid.Nil {
+		if err = q.FreezeSecretPreparation(ctx, p.buildID); err != nil {
+			return nil, err
+		}
+	}
+
+	assigned, err := q.LockSecretBuildAssignments(ctx, repository.LockSecretBuildAssignmentsParams{BuildID: p.buildID, UserID: p.submittedBy})
+	if err != nil {
+		return nil, err
+	}
+	validAssignment := false
+	for _, a := range assigned {
+		if a.RoleName == p.personaRole.String() {
+			validAssignment = true
+		}
+	}
+	if !validAssignment {
+		return nil, model.ErrForbidden("The required build assignment is no longer active.")
+	}
+
 	// Resolve the role's DB UUID.
-	roleRow, err := s.queries.GetRoleByName(ctx, p.personaRole.String())
+	roleRow, err := q.GetRoleByName(ctx, p.personaRole.String())
 	if err != nil {
 		return nil, model.ErrInvalidRequest("invalid persona role")
 	}
 
 	// Reject duplicate submission for the same role on this build.
-	_, err = s.queries.GetBuildSectionByRole(ctx, repository.GetBuildSectionByRoleParams{
+	_, err = q.GetBuildSectionByRole(ctx, repository.GetBuildSectionByRoleParams{
 		BuildID:     p.buildID,
 		PersonaRole: p.personaRole.String(),
 	})
@@ -236,7 +310,7 @@ func (s *ContractService) submitSection(ctx context.Context, p submitSectionPara
 	}
 
 	// Insert the section.
-	row, err := s.queries.CreateBuildSection(ctx, repository.CreateBuildSectionParams{
+	row, err := q.CreateBuildSection(ctx, repository.CreateBuildSectionParams{
 		BuildID:             p.buildID,
 		PersonaRole:         p.personaRole.String(),
 		RoleID:              pgtype.UUID{Bytes: roleRow.ID, Valid: true},
@@ -263,7 +337,7 @@ func (s *ContractService) submitSection(ctx context.Context, p submitSectionPara
 	}
 
 	// Auto-transition build status.
-	if err := s.buildService.TransitionStatus(
+	if err := NewBuildService(q, NewAuditService(q)).TransitionStatus(
 		ctx,
 		p.buildID,
 		p.nextStatus,
@@ -273,14 +347,21 @@ func (s *ContractService) submitSection(ctx context.Context, p submitSectionPara
 		p.requestSignature,
 		p.requestSignatureHash,
 	); err != nil {
-		return nil, fmt.Errorf("section stored but status transition to %s failed: %w", p.nextStatus, err)
+		return nil, fmt.Errorf("section transaction status transition to %s failed: %w", p.nextStatus, err)
 	}
 
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit section: %w", err)
+	}
 	return section, nil
 }
 
 func (s *ContractService) FinalizeContract(ctx context.Context, in FinalizeContractV2Input) (*FinalizeContractV2Result, error) {
 	if err := s.assignmentService.ValidateAssignmentForSubmission(ctx, in.BuildID, in.ActorID, model.RoleAuditor.String()); err != nil {
+		return nil, err
+	}
+
+	if _, _, err := s.preparedForSection(ctx, in.BuildID, ""); err != nil {
 		return nil, err
 	}
 
@@ -370,7 +451,25 @@ func (s *ContractService) FinalizeContract(ctx context.Context, in FinalizeContr
 	// FinalizeBuild handles the transition and state validation.
 	// Use the request signature from the finalization request for the audit trail.
 
-	if err := s.buildService.FinalizeBuild(
+	beginner, ok := s.db.(interface {
+		Begin(context.Context) (pgx.Tx, error)
+	})
+	if !ok {
+		return nil, model.ErrInternal("Finalization requires database transactions.")
+	}
+	finalTx, err := beginner.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer finalTx.Rollback(ctx)
+	finalQ := repository.New(finalTx)
+	if _, err = finalQ.LockSecretBuild(ctx, in.BuildID); err != nil {
+		return nil, err
+	}
+	if _, _, err = validatePrepared(ctx, finalQ, in.BuildID); err != nil {
+		return nil, flowDomain(err)
+	}
+	if err := NewBuildService(finalQ, NewAuditService(finalQ)).FinalizeBuild(
 		ctx,
 		in.BuildID,
 		contractHash,
@@ -380,6 +479,10 @@ func (s *ContractService) FinalizeContract(ctx context.Context, in FinalizeContr
 		in.RequestSignature,
 		in.RequestSignatureHash,
 	); err != nil {
+		return nil, err
+	}
+
+	if err = finalTx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
@@ -425,7 +528,10 @@ func zeroizeBytes(b []byte) {
 }
 
 func ensureEnvironmentHasSigningKey(plaintext, signingKey string) (string, error) {
-	section, err := validation.Validate(plaintext, "env")
+	return ensureEnvironmentHasSigningKeyForProfile(plaintext, signingKey, "ccrt")
+}
+func ensureEnvironmentHasSigningKeyForProfile(plaintext, signingKey, profile string) (string, error) {
+	section, err := validation.ValidateForProfile(plaintext, "env", profile)
 	if err != nil {
 		return "", err
 	}

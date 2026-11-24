@@ -2,6 +2,9 @@
 
 A persona-governed, cryptographically auditable contract lifecycle system for IBM Confidential Computing Container Runtime (CCRT) deployments.
 
+The optional [neutral Secret Store](docs/secret-store.md) supports encrypted values,
+personal versioned groups and build source preparation without sharing.
+
 ---
 
 ## Prerequisites
@@ -157,7 +160,7 @@ docker compose -f compose/docker-compose.yaml --project-directory compose \
 │   ├── repository/         # SQLC-generated DB layer (do not edit *.sql.go)
 │   ├── repository/queries/ # SQL source files — edit these, then run ./scripts/generate-repository.sh
 │   └── service/            # Business logic
-├── migrations/             # golang-migrate SQL files (22 migrations)
+├── migrations/             # golang-migrate SQL files (25 migrations)
 ├── docs/                   # API reference, contract validation, multi-key testing guide
 ├── Design/                 # High/low-level, security and deployment design documents
 ├── scripts/                # generate-repository.sh (SQLC generation)
@@ -289,3 +292,5 @@ Authenticated clients can discover platform-specific versions using `GET /v2/enc
 
 
 Deploy this backend before releasing the paired UI validation change: the UI requires `POST /v2/contract-validate`. Existing unpinned builds cannot retrospectively verify the encryption recipient of older sections. No database migration is added by this change.
+
+The optional [runtime secret flow](docs/secret-flow.md) prepares signed owner-approved requests for an explicit deployment target; the Manager host is never selected implicitly.

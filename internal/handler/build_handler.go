@@ -9,6 +9,7 @@ import (
 
 	"github.com/ibm-hyper-protect/contract-manager/internal/middleware"
 	"github.com/ibm-hyper-protect/contract-manager/internal/model"
+	"github.com/ibm-hyper-protect/contract-manager/internal/repository"
 	"github.com/ibm-hyper-protect/contract-manager/internal/service"
 )
 
@@ -105,7 +106,15 @@ func (h *BuildHandler) GetBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, build)
+	required, err := h.buildService.RequiresSecretFlow(r.Context(), buildID)
+	if err != nil {
+		writeError(w, model.ErrInternal("Failed to load secret preparation requirements."))
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		*repository.Build
+		SecretFlowRequired bool `json:"secret_flow_required"`
+	}{Build: build, SecretFlowRequired: required})
 }
 
 // ListBuilds handles GET /builds.
