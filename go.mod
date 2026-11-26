@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/google/uuid v1.6.0
-	github.com/ibm-hyper-protect/contract-go/v3 v3.5.0
+	github.com/ibm-hyper-protect/contract-go/v3 v3.5.1
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	golang.org/x/crypto v0.59.0
